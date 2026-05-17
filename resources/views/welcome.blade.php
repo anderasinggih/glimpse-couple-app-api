@@ -100,7 +100,7 @@
                 <!-- Left Content -->
                 <div class="lg:col-span-7 space-y-6 text-left relative z-10">
                     <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-electricPurple/10 border border-electricPurple/20 text-electricPurple text-xs font-semibold uppercase tracking-wider">
-                        <span>✨ iOS 26 Liquid Glass Design System</span>
+                        <span>iOS 26 Liquid Glass Design System</span>
                     </div>
                     
                     <h2 class="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1] mb-4">
@@ -145,7 +145,12 @@
                                             <span class="block text-[8px] text-white/50">Online</span>
                                         </div>
                                     </div>
-                                    <span class="text-xs text-activeCyan font-bold">🔋 84%</span>
+                                    <div class="flex items-center space-x-1 text-activeCyan">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5">
+                                            <path fill-rule="evenodd" d="M3.75 6.75a3 3 0 00-3 3v4.5a3 3 0 003 3h15a3 3 0 003-3v-4.5a3 3 0 00-3-3h-15zM22.5 10.5a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5a.75.75 0 01.75-.75z" clip-rule="evenodd" />
+                                        </svg>
+                                        <span class="text-xs font-bold">84%</span>
+                                    </div>
                                 </div>
                             </div>
 
