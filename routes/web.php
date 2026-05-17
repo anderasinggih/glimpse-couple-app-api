@@ -210,8 +210,193 @@ Route::post('/admin/api', function (Request $request) {
         case 'delete_user':
             $userId = $request->input('user_id');
             $user = User::findOrFail($userId);
+            
+            $deletePhysicalFile = function($url) {
+                if (!$url) return;
+                $relativePath = parse_url($url, PHP_URL_PATH);
+                if (strpos($relativePath, '/storage/') === 0) {
+                    $relativePath = substr($relativePath, 9);
+                }
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+            };
+
+            // 1. Delete user photo attachments
+            $deletePhysicalFile($user->profile_photo_url);
+            $deletePhysicalFile($user->latest_photo_url);
+
+            // 2. Clear out flashes uploaded by this user
+            $userFlashes = Flash::where('sender_id', $user->id)->get();
+            foreach ($userFlashes as $f) {
+                $deletePhysicalFile($f->photo_url);
+                $f->delete();
+            }
+
+            // 3. Handle couple connection
+            if ($user->couple_id) {
+                $coupleId = $user->couple_id;
+                
+                // Unlink partner
+                $partner = User::where('couple_id', $coupleId)->where('id', '!=', $user->id)->first();
+                if ($partner) {
+                    $partner->couple_id = null;
+                    $partner->save();
+                }
+
+                // Delete all chats in the couple
+                Message::where('couple_id', $coupleId)->delete();
+
+                // Delete all other flashes in the couple
+                $coupleFlashes = Flash::where('couple_id', $coupleId)->get();
+                foreach ($coupleFlashes as $f) {
+                    $deletePhysicalFile($f->photo_url);
+                    $f->delete();
+                }
+
+                // Delete the couple itself
+                Couple::where('id', $coupleId)->delete();
+            }
+
+            // 4. Finally delete the user
             $user->delete();
-            return response()->json(['success' => true, 'message' => "User deleted successfully."]);
+            return response()->json(['success' => true, 'message' => "User, their chats, couple bonds, flashes, and all physical files on disk have been completely purged like a God!"]);
+
+        case 'delete_flashes':
+            $userId = $request->input('user_id'); // "all" or specific user id
+            $daysAgo = (int)$request->input('days_ago'); // e.g. 1, 2, 3 days
+            
+            $deletePhysicalFile = function($url) {
+                if (!$url) return;
+                $relativePath = parse_url($url, PHP_URL_PATH);
+                if (strpos($relativePath, '/storage/') === 0) {
+                    $relativePath = substr($relativePath, 9);
+                }
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+            };
+
+            $query = Flash::query();
+
+            // Filter by user if not "all"
+            if ($userId && $userId !== 'all') {
+                $query->where('sender_id', $userId);
+            }
+
+            // Filter by created_at date (H-X)
+            if ($daysAgo > 0) {
+                $thresholdDate = now()->subDays($daysAgo);
+                $query->where('created_at', '<', $thresholdDate);
+            }
+
+            $flashesToDelete = $query->get();
+            $count = $flashesToDelete->count();
+
+            foreach ($flashesToDelete as $f) {
+                $deletePhysicalFile($f->photo_url);
+                $f->delete();
+            }
+
+            return response()->json([
+                'success' => true, 
+                'message' => "Successfully pruned {$count} selected Glimpse Flash histories and wiped their files from disk!"
+            ]);
+
+        case 'forced_couple_link':
+            $user1Id = $request->input('user_1_id');
+            $user2Id = $request->input('user_2_id');
+
+            if ($user1Id == $user2Id) {
+                return response()->json(['error' => 'Cannot couple link a user to themselves.'], 400);
+            }
+
+            $u1 = User::findOrFail($user1Id);
+            $u2 = User::findOrFail($user2Id);
+
+            // Create new couple connection
+            $couple = Couple::create([
+                'anniversary_start_date' => now()->format('Y-m-d H:i:s'),
+                'is_active' => true
+            ]);
+
+            $u1->couple_id = $couple->id;
+            $u1->save();
+
+            $u2->couple_id = $couple->id;
+            $u2->save();
+
+            // Broadcast link events to both devices
+            event(new \App\Events\PartnerStateUpdated($couple->id, $u1->id, 'couple_linked'));
+            event(new \App\Events\PartnerStateUpdated($couple->id, $u2->id, 'couple_linked'));
+
+            return response()->json([
+                'success' => true, 
+                'message' => "God-Link successful! Connected {$u1->name} and {$u2->name} into Couple ID {$couple->id} instantly!"
+            ]);
+
+        case 'broadcast_announcement':
+            $announcementText = $request->input('text');
+            if (empty($announcementText)) {
+                return response()->json(['error' => 'Announcement text cannot be empty.'], 400);
+            }
+
+            // Find all active couples
+            $couples = Couple::where('is_active', true)->get();
+            foreach ($couples as $c) {
+                // Send chat bubble message in that couple channel
+                Message::create([
+                    'couple_id' => $c->id,
+                    'sender_id' => 0, // 0 indicates System / Admin announcement!
+                    'message' => "📢 [SYSTEM ANNOUNCEMENT]: " . $announcementText
+                ]);
+
+                // Trigger live websocket broadcast so client phones play sound and show bubble instantly!
+                event(new \App\Events\MessageSent($c->id, [
+                    'id' => rand(10000, 99999),
+                    'couple_id' => $c->id,
+                    'sender_id' => 0,
+                    'message' => "📢 [SYSTEM ANNOUNCEMENT]: " . $announcementText,
+                    'created_at' => now()->toISOString()
+                ]));
+            }
+
+            return response()->json([
+                'success' => true, 
+                'message' => "Broadcasted announcement to " . $couples->count() . " active couples instantly!"
+            ]);
+
+        case 'database_optimize':
+            try {
+                \Illuminate\Support\Facades\DB::statement('VACUUM'); // SQLite optimization
+            } catch (\Exception $e) {
+                try {
+                    \Illuminate\Support\Facades\DB::statement('OPTIMIZE TABLE users, couples, messages, flashes');
+                } catch (\Exception $ex) {}
+            }
+
+            $allCouples = Couple::all();
+            $orphansCount = 0;
+            foreach ($allCouples as $c) {
+                $usersCount = User::where('couple_id', $c->id)->count();
+                if ($usersCount === 0) {
+                    Message::where('couple_id', $c->id)->delete();
+                    $flashes = Flash::where('couple_id', $c->id)->get();
+                    foreach ($flashes as $f) {
+                        if ($f->photo_url) {
+                            $relativePath = parse_url($f->photo_url, PHP_URL_PATH);
+                            if (strpos($relativePath, '/storage/') === 0) {
+                                $relativePath = substr($relativePath, 9);
+                            }
+                            \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+                        }
+                        $f->delete();
+                    }
+                    $c->delete();
+                    $orphansCount++;
+                }
+            }
+
+            return response()->json([
+                'success' => true, 
+                'message' => "Database optimized successfully! Cleaned up {$orphansCount} orphaned couple remnants!"
+            ]);
 
         default:
             return response()->json(['error' => 'Unknown action.'], 400);
