@@ -32,7 +32,7 @@ jobs:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: galleryfortwo.my.id/glimpse/  # Menyesuaikan dengan folder subdomain baru Anda di cPanel
+        server-dir: ./  # Mengunggah langsung ke folder root login FTP (galleryfortwo.my.id/glimpse/)
         exclude: |
           **/.git*
           **/.git*/**
