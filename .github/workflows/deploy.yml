@@ -26,21 +26,7 @@ jobs:
     - name: Install Composer Dependencies
       run: composer install --no-ansi --no-dev --no-interaction --no-plugins --no-progress --no-scripts --optimize-autoloader
 
-    - name: Sync Files via FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: ./  # Mengunggah langsung ke folder root login FTP (galleryfortwo.my.id/glimpse/)
-        port: 21
-        protocol: ftp
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/node_modules/**
-          **/tests/**
-          storage/framework/cache/data/*
-          storage/framework/sessions/*
-          storage/framework/views/*
-          storage/logs/*
+    - name: Sync Files via LFTP (Resilient Plain FTP)
+      run: |
+        sudo apt-get update && sudo apt-get install -y lftp
+        lftp -e "set ftp:ssl-allow no; set ftp:passive-mode yes; mirror -R --ignore-time --parallel=10 --exclude-glob .git* --exclude-glob node_modules* --exclude-glob tests* --exclude-glob storage/framework/cache/data* --exclude-glob storage/framework/sessions* --exclude-glob storage/framework/views* --exclude-glob storage/logs* ./ ./; quit" -u "${{ secrets.FTP_USERNAME }}","${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
