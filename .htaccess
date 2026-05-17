@@ -1,6 +1,13 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
+    # WebSocket Reverse Proxy to Reverb (port 8080)
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule ^app/(.*) ws://127.0.0.1:8080/app/$1 [P,L]
+    
+    RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+    RewriteRule ^app/(.*) http://127.0.0.1:8080/app/$1 [P,L]
+    
     # 1. BLOKIR AKSES LANGSUNG KE FILE SENSITIF LARAVEL (KEAMANAN MUTLAK)
     RedirectMatch 403 /\.(key|env|git|json|yml|yaml)$
     RedirectMatch 403 ^/composer\.(json|lock)$
