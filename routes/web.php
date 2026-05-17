@@ -10,6 +10,21 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/debug-storage', function () {
+    $avatarsDir = storage_path('app/public/avatars');
+    $files = file_exists($avatarsDir) ? scandir($avatarsDir) : [];
+    
+    $users = \App\Models\User::select('id', 'name', 'profile_photo_url')->get()->toArray();
+    
+    return response()->json([
+        'avatars_directory_exists' => file_exists($avatarsDir),
+        'avatars_directory_path' => $avatarsDir,
+        'files_in_avatars' => $files,
+        'users_in_database' => $users,
+        'symlink_public_storage_exists' => file_exists(public_path('storage')),
+    ]);
+});
+
 Route::post('/admin/api', function (Request $request) {
     // 1. Verify access token
     $token = $request->header('X-Admin-Token') ?: $request->input('token');
