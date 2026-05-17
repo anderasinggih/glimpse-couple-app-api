@@ -11,7 +11,7 @@ $logPath = __DIR__ . '/../storage/logs/laravel.log';
 if (file_exists($logPath)) {
     echo "<h4>Latest Laravel Log Entries:</h4>";
     $lines = file($logPath);
-    $lastLines = array_slice($lines, -25);
+    $lastLines = array_slice($lines, -150);
     echo "<pre style='background:#f4f4f4; padding:10px; border:1px solid #ccc; max-height: 400px; overflow: auto;'>" . htmlspecialchars(implode("", $lastLines)) . "</pre>";
 } else {
     echo "<p>No Laravel log file found at $logPath</p>";
