@@ -10,6 +10,116 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/privacy', function () {
+    return '
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Glimpse</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0b071e;
+            color: #ffffff;
+            font-family: "Outfit", sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a855f7 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        h2 {
+            font-size: 1.4rem;
+            color: #06b6d4;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+        p, li {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Glimpse Privacy Policy</h1>
+        <p class="subtitle">Effective Date: May 17, 2026</p>
+        
+        <p>Welcome to Glimpse, an intimate companion application designed to keep couples connected. Your privacy is of paramount importance to us. This Privacy Policy describes how Glimpse collects, uses, processes, and protects your information.</p>
+        
+        <h2>1. Information We Collect</h2>
+        <p>To provide a seamless real-time connection experience, Glimpse collects the following categories of information:</p>
+        <ul>
+            <li><strong>Account Data:</strong> Your name, email address, password, and profile photo when you sign up.</li>
+            <li><strong>Intimate Connection State:</strong> Location coordinates (latitude and longitude), battery status, charging state, status notes, and photos you capture for your Flash memory feed.</li>
+            <li><strong>Direct Messaging:</strong> Chat messages exchanged between you and your linked partner. Messages are transmitted securely to deliver them in real-time.</li>
+        </ul>
+        
+        <h2>2. How We Use Your Information</h2>
+        <p>Glimpse uses the collected information strictly for the following purposes:</p>
+        <ul>
+            <li>To display your real-time presence (location, battery status, and status note) to your linked partner.</li>
+            <li>To share direct chat messages and Flash photos exclusively with your connected partner.</li>
+            <li>To host and build your shared memory timeline.</li>
+        </ul>
+        
+        <h2>3. Data Sharing & Security</h2>
+        <p><strong>We do not sell, trade, or share your personal data with any third-party advertisers or corporations.</strong> Your data is strictly shared with the individual you choose to pair with using your unique connection invite code.</p>
+        
+        <h2>4. Data Retention & Control</h2>
+        <p>You have full control over your shared intimacy data. You can disconnect from your partner, delete past messages, or request account deletion directly from the settings menu within the application at any time.</p>
+        
+        <div class="footer">
+            &copy; 2026 Glimpse App. Crafted with love.
+        </div>
+    </div>
+</body>
+</html>
+';
+});
+
 Route::get('/debug-storage', function () {
     $avatarsDir = storage_path('app/public/avatars');
     $files = file_exists($avatarsDir) ? scandir($avatarsDir) : [];
