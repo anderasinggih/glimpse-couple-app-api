@@ -29,4 +29,4 @@ jobs:
     - name: Sync Files via LFTP (Resilient Plain FTP)
       run: |
         sudo apt-get update && sudo apt-get install -y lftp
-        lftp -e "set ftp:ssl-allow no; set ftp:passive-mode yes; mirror -R --ignore-time --parallel=10 --exclude-glob .git* --exclude-glob node_modules* --exclude-glob tests* --exclude-glob storage/framework/cache/data* --exclude-glob storage/framework/sessions* --exclude-glob storage/framework/views* --exclude-glob storage/logs* ./ ./; quit" -u "${{ secrets.FTP_USERNAME }}","${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
+        lftp -e "set ftp:ssl-allow no; set ftp:passive-mode yes; mirror -R --ignore-time --parallel=10 --exclude-glob .git* --exclude-glob node_modules* --exclude-glob tests* --exclude-glob vendor* --exclude-glob storage/framework/cache/data* --exclude-glob storage/framework/sessions* --exclude-glob storage/framework/views* --exclude-glob storage/logs* ./ ./; quit" -u "${{ secrets.FTP_USERNAME }}","${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
