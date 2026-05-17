@@ -87,6 +87,7 @@ class GlimpseController extends Controller
                     'email' => $user->email,
                     'invite_code' => $user->invite_code,
                     'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
+                    'born_date' => $user->born_date,
                     'couple_id' => $user->couple_id !== null ? (int)$user->couple_id : null,
                     'latitude' => $user->latitude !== null ? (double)$user->latitude : null,
                     'longitude' => $user->longitude !== null ? (double)$user->longitude : null,
@@ -104,6 +105,7 @@ class GlimpseController extends Controller
                     'name' => $partner->name,
                     'email' => $partner->email,
                     'profile_photo_url' => $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name),
+                    'born_date' => $partner->born_date,
                     'couple_id' => $partner->couple_id !== null ? (int)$partner->couple_id : null,
                     'latitude' => $partner->latitude !== null ? (double)$partner->latitude : null,
                     'longitude' => $partner->longitude !== null ? (double)$partner->longitude : null,
@@ -117,6 +119,7 @@ class GlimpseController extends Controller
                     'location_history' => $this->getFilteredHistory($partner->location_history),
                 ] : null,
                 'anniversary_start_date' => $couple ? $couple->anniversary_start_date : null,
+                'paired_at' => $couple && $couple->created_at ? $couple->created_at->toIso8601String() : null,
                 'disconnect_requested_by' => $couple && $couple->disconnect_requested_by !== null ? (int)$couple->disconnect_requested_by : null,
                 'couple_active' => $couple ? (bool) $couple->is_active : false,
                 'invited_by' => $couple && $couple->invited_by !== null ? (int)$couple->invited_by : null,
@@ -137,11 +140,13 @@ class GlimpseController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:30',
             'email' => 'sometimes|email|max:100|unique:users,email,' . $user->id,
+            'born_date' => 'sometimes|nullable|date',
             'profile_photo' => 'sometimes|image|max:5120'
         ]);
 
         if ($request->has('name')) $user->name = $request->name;
         if ($request->has('email')) $user->email = $request->email;
+        if ($request->has('born_date')) $user->born_date = $request->born_date;
         
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo_url && !str_contains($user->profile_photo_url, 'ui-avatars')) {
@@ -165,6 +170,7 @@ class GlimpseController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'born_date' => $user->born_date,
                 'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
             ]
         ]);
