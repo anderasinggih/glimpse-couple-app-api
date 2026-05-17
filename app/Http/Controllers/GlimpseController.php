@@ -135,7 +135,7 @@ class GlimpseController extends Controller
         
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo_url && !str_contains($user->profile_photo_url, 'ui-avatars')) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $user->profile_photo_url));
+                Storage::disk('public')->delete('avatars/' . basename($user->profile_photo_url));
             }
             $path = $request->file('profile_photo')->store('avatars', 'public');
             $user->profile_photo_url = Storage::url($path);
