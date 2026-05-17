@@ -13,7 +13,6 @@
     RedirectMatch 403 ^/composer\.(json|lock)$
     RedirectMatch 403 ^/package\.(json|lock)$
     RedirectMatch 403 ^/artisan$
-    RedirectMatch 403 ^/app/
     RedirectMatch 403 ^/bootstrap/
     RedirectMatch 403 ^/config/
     RedirectMatch 403 ^/database/
