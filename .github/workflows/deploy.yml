@@ -33,6 +33,8 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         server-dir: ./  # Mengunggah langsung ke folder root login FTP (galleryfortwo.my.id/glimpse/)
+        port: 21
+        protocol: ftp
         exclude: |
           **/.git*
           **/.git*/**
