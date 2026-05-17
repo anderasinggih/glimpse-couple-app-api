@@ -121,3 +121,14 @@ Route::get('/storage/{directory}/{filename}', function ($directory, $filename) {
 
     return response($file, 200)->header("Content-Type", $type);
 });
+
+// Diagnostic route to read laravel logs
+Route::get('/view-logs', function () {
+    $logPath = storage_path('logs/laravel.log');
+    if (!file_exists($logPath)) {
+        return response()->json(['message' => 'No logs found.']);
+    }
+    $lines = file($logPath);
+    $lastLines = array_slice($lines, -100);
+    return response(implode("", $lastLines), 200)->header('Content-Type', 'text/plain');
+});
