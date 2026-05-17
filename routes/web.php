@@ -92,3 +92,17 @@ Route::post('/admin/api', function (Request $request) {
             return response()->json(['error' => 'Unknown action.'], 400);
     }
 });
+
+// Fallback route to serve storage files directly, bypassing cPanel symbolic link block restrictions
+Route::get('/storage/{directory}/{filename}', function ($directory, $filename) {
+    $path = storage_path('app/public/' . $directory . '/' . $filename);
+
+    if (!file_exists($path)) {
+        abort(404);
+    }
+
+    $file = file_get_contents($path);
+    $type = mime_content_type($path);
+
+    return response($file, 200)->header("Content-Type", $type);
+});
