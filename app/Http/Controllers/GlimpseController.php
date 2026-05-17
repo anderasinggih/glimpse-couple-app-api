@@ -302,7 +302,11 @@ class GlimpseController extends Controller
                     'battery_level' => $user->battery_level
                 ]);
                 
-                broadcast(new PartnerStateUpdated($user))->toOthers();
+                try {
+                    broadcast(new PartnerStateUpdated($user))->toOthers();
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+                }
             }
 
             return response()->json([
@@ -398,7 +402,11 @@ class GlimpseController extends Controller
         ]);
 
         // Broadcast MessageSent event to the partner over WebSockets
-        broadcast(new \App\Events\MessageSent($msg))->toOthers();
+        try {
+            broadcast(new \App\Events\MessageSent($msg))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
 
         return response()->json($msg);
     }
@@ -426,7 +434,11 @@ class GlimpseController extends Controller
         $user->save();
 
         // Broadcast live state updates to the partner instantly over WebSockets
-        broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Status updated successfully!',
@@ -473,7 +485,11 @@ class GlimpseController extends Controller
                     $couple->save();
                     
                     // Broadcast meeting milestone event
-                    broadcast(new PartnerStateUpdated($user))->toOthers();
+                    try {
+                        broadcast(new PartnerStateUpdated($user))->toOthers();
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+                    }
                 }
             }
         }
@@ -495,7 +511,11 @@ class GlimpseController extends Controller
         ], 60);
 
         // Broadcast LoveBurstSent event to partner instantly over WebSockets
-        broadcast(new \App\Events\LoveBurstSent($user->couple_id, $user->id, $timestamp))->toOthers();
+        try {
+            broadcast(new \App\Events\LoveBurstSent($user->couple_id, $user->id, $timestamp))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Love burst triggered!',
@@ -512,7 +532,11 @@ class GlimpseController extends Controller
         }
 
         // Broadcast typing status with 0 database queries
-        broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing))->toOthers();
+        try {
+            broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
 
         return response()->json(['status' => 'ok']);
     }
