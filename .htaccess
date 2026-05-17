@@ -12,7 +12,6 @@
     RedirectMatch 403 ^/database/
     RedirectMatch 403 ^/resources/
     RedirectMatch 403 ^/routes/
-    RedirectMatch 403 ^/storage/
     RedirectMatch 403 ^/tests/
     RedirectMatch 403 ^/vendor/
 
