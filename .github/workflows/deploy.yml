@@ -1,0 +1,43 @@
+name: Deploy Glimpse API to cPanel Subdomain
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  web-deploy:
+    name: Deploy Laravel API via FTP
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get latest code
+      uses: actions/checkout@v3
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, json, pdo, sqlite, pdo_sqlite
+
+    - name: Copy .env.example if .env not present
+      run: cp .env.example .env
+
+    - name: Install Composer Dependencies
+      run: composer install --no-ansi --no-dev --no-interaction --no-plugins --no-progress --no-scripts --optimize-autoloader
+
+    - name: Sync Files via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: public_html/api/  # Ganti dengan nama folder subdomain Anda di cPanel
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/tests/**
+          storage/framework/cache/data/*
+          storage/framework/sessions/*
+          storage/framework/views/*
+          storage/logs/*
