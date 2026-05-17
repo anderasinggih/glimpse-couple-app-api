@@ -631,7 +631,7 @@
                 </div>
 
                 <!-- Server Info Cards -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Environment Info -->
                     <div class="p-6 rounded-2xl border border-white/10 bg-white/5 shadow-lg space-y-4">
                         <h3 class="text-lg font-bold flex items-center space-x-2">
@@ -666,16 +666,53 @@
                         </div>
                     </div>
 
+                    <!-- WebSocket & Reverb Diagnostics -->
+                    <div class="p-6 rounded-2xl border border-white/10 bg-white/5 shadow-lg space-y-4 flex flex-col">
+                        <h3 class="text-lg font-bold flex items-center space-x-2">
+                            <span class="w-1.5 h-6 rounded bg-emerald-500 inline-block"></span>
+                            <span>WebSocket & Reverb Monitor</span>
+                        </h3>
+                        
+                        <div class="space-y-3 flex-grow text-sm">
+                            <!-- Connection Status -->
+                            <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                <span class="text-xs text-white/60">Socket Connection</span>
+                                <div class="flex items-center space-x-2">
+                                    <span id="ws-diag-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    <span id="ws-diag-status" class="text-xs font-bold text-amber-400">Connecting...</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Host & Port details -->
+                            <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                <span class="text-xs text-white/60">Reverb Local Endpoint</span>
+                                <span class="text-xs font-mono text-white/80 bg-white/5 px-2 py-0.5 rounded border border-white/10">127.0.0.1:8080</span>
+                            </div>
+
+                            <!-- Channel Status -->
+                            <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                <span class="text-xs text-white/60">Active Subscriptions</span>
+                                <span id="ws-diag-channels" class="text-xs font-bold text-white">0 active channels</span>
+                            </div>
+                            
+                            <!-- Heartbeat ping -->
+                            <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                <span class="text-xs text-white/60">Last Ping/Latency</span>
+                                <span id="ws-diag-latency" class="text-xs font-mono text-white/80">-</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Developer Logs -->
                     <div class="p-6 rounded-2xl border border-white/10 bg-white/5 shadow-lg space-y-4 flex flex-col">
                         <h3 class="text-lg font-bold flex items-center space-x-2">
                             <span class="w-1.5 h-6 rounded bg-activeCyan inline-block"></span>
                             <span>Quick Developer Actions</span>
                         </h3>
-                        <div class="flex-grow grid grid-cols-2 gap-4">
+                        <div class="flex-grow grid grid-cols-1 gap-4">
                             <button onclick="switchTab('control')" class="p-4 bg-electricPurple/10 hover:bg-electricPurple/20 border border-electricPurple/20 hover:border-electricPurple/30 rounded-xl text-left transition-all group">
                                 <span class="block font-bold text-white group-hover:text-electricPurple transition-all">Pusher Emulator</span>
-                                <span class="block text-xs text-white/50 mt-1">Force device triggers and location updates easily.</span>
+                                <span class="block text-xs text-white/50 mt-1">Force device triggers and location updates.</span>
                             </button>
                             <button onclick="switchTab('users')" class="p-4 bg-activeCyan/10 hover:bg-activeCyan/20 border border-activeCyan/20 hover:border-activeCyan/30 rounded-xl text-left transition-all group">
                                 <span class="block font-bold text-white group-hover:text-activeCyan transition-all">Mock Battery Levels</span>
@@ -931,6 +968,9 @@
                         mainDashboard.classList.remove('opacity-0');
                         mainDashboard.classList.add('opacity-100');
                     }, 50);
+                    
+                    // Start live websocket diagnostics monitor
+                    startWebSocketDiagnostics();
                 } else {
                     if (!isAuto) showLoginError();
                 }
@@ -948,6 +988,11 @@
 
         function handleLogout() {
             localStorage.removeItem('glimpse_admin_token');
+            if (liveWS) {
+                try { liveWS.close(); } catch(e) {}
+                liveWS = null;
+            }
+            clearInterval(wsPingInterval);
             mainDashboard.classList.add('opacity-0');
             setTimeout(() => {
                 mainDashboard.classList.add('hidden');
@@ -1322,6 +1367,87 @@
                 alert('Broadcasted simulated device charging alert!');
             } else if (type === 'online') {
                 alert('Broadcasted simulated location active update pulsing!');
+            }
+        }
+
+        // Live WebSocket Diagnostics Logic
+        let liveWS = null;
+        let wsPingInterval = null;
+        let lastPingTime = 0;
+
+        function startWebSocketDiagnostics() {
+            if (liveWS) {
+                try { liveWS.close(); } catch(e) {}
+            }
+            
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsHost = window.location.host;
+            const appKey = 'u1eadho8wbhzv2mcnlfy';
+            const wsUrl = `${wsProtocol}://${wsHost}/app/${appKey}?protocol=7&client=js&version=8.4.0-reverb`;
+            
+            const statusEl = document.getElementById('ws-diag-status');
+            const indicatorEl = document.getElementById('ws-diag-indicator');
+            const latencyEl = document.getElementById('ws-diag-latency');
+            const channelEl = document.getElementById('ws-diag-channels');
+
+            statusEl.innerText = 'Connecting...';
+            statusEl.className = 'text-xs font-bold text-amber-400';
+            indicatorEl.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
+
+            try {
+                liveWS = new WebSocket(wsUrl);
+                
+                liveWS.onopen = () => {
+                    console.log('🔌 Live Admin Diagnostic Socket connected!');
+                    // Start heartbeats
+                    clearInterval(wsPingInterval);
+                    wsPingInterval = setInterval(() => {
+                        if (liveWS && liveWS.readyState === WebSocket.OPEN) {
+                            lastPingTime = Date.now();
+                            liveWS.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
+                        }
+                    }, 10000); // ping every 10 seconds
+                };
+
+                liveWS.onmessage = (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        if (payload.event === 'pusher:connection_established') {
+                            statusEl.innerText = 'CONNECTED';
+                            statusEl.className = 'text-xs font-bold text-emerald-400';
+                            indicatorEl.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10B981]';
+                            channelEl.innerText = '1 active diagnostic channel';
+                        } else if (payload.event === 'pusher:pong') {
+                            const rtt = Date.now() - lastPingTime;
+                            latencyEl.innerText = `${rtt} ms`;
+                            latencyEl.className = 'text-xs font-mono text-emerald-400';
+                        }
+                    } catch(e) {
+                        console.error('Socket frame error', e);
+                    }
+                };
+
+                liveWS.onclose = () => {
+                    if (!localStorage.getItem('glimpse_admin_token')) return; // Don't reconnect on logout
+                    statusEl.innerText = 'OFFLINE / DISCONNECTED';
+                    statusEl.className = 'text-xs font-bold text-rose-400';
+                    indicatorEl.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                    latencyEl.innerText = '-';
+                    channelEl.innerText = '0 active channels';
+                    clearInterval(wsPingInterval);
+                    
+                    // Reconnect in 5 seconds
+                    setTimeout(startWebSocketDiagnostics, 5000);
+                };
+
+                liveWS.onerror = () => {
+                    statusEl.innerText = 'CONNECTION ERROR';
+                    statusEl.className = 'text-xs font-bold text-rose-400';
+                    indicatorEl.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                };
+
+            } catch (err) {
+                console.error('Failed to initiate socket diagnostic', err);
             }
         }
     </script>
