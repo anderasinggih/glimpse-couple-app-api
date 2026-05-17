@@ -649,7 +649,15 @@
                             </div>
                             <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                                 <span class="block text-[10px] text-white/50 uppercase font-semibold">Database Connection</span>
-                                <span class="font-bold text-white">{{ DB::connection()->getDriverName() }}</span>
+                                @php
+                                    $dbDriver = 'Unknown';
+                                    try {
+                                        $dbDriver = DB::connection()->getDriverName();
+                                    } catch (\Exception $e) {
+                                        $dbDriver = 'Offline/Pending';
+                                    }
+                                @endphp
+                                <span class="font-bold text-white">{{ $dbDriver }}</span>
                             </div>
                             <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                                 <span class="block text-[10px] text-white/50 uppercase font-semibold">Server Host</span>
