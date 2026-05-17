@@ -40,6 +40,33 @@ if (file_exists($envPath)) {
         try {
             $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName", $dbUser, $dbPass);
             echo "<p style='color:green'>Connection Successful!</p>";
+            
+            echo "<h4>Database Content Dump:</h4>";
+            
+            // Fetch users
+            echo "<h5>Users:</h5>";
+            $stmt = $pdo->query("SELECT id, name, email, couple_id, invite_code FROM users");
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo "<pre>" . print_r($users, true) . "</pre>";
+            
+            // Fetch couples
+            echo "<h5>Couples:</h5>";
+            $stmt = $pdo->query("SELECT id, anniversary_start_date, is_active FROM couples");
+            $couples = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo "<pre>" . print_r($couples, true) . "</pre>";
+            
+            // Fetch last 5 flashes
+            echo "<h5>Last 5 Flashes:</h5>";
+            $stmt = $pdo->query("SELECT id, couple_id, sender_id, photo_url, created_at FROM flashes ORDER BY id DESC LIMIT 5");
+            $flashes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo "<pre>" . print_r($flashes, true) . "</pre>";
+            
+            // Fetch last 5 messages
+            echo "<h5>Last 5 Messages:</h5>";
+            $stmt = $pdo->query("SELECT id, couple_id, sender_id, message, created_at FROM messages ORDER BY id DESC LIMIT 5");
+            $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo "<pre>" . print_r($messages, true) . "</pre>";
+            
         } catch (PDOException $e) {
             echo "<p style='color:red'>Connection Failed: " . htmlspecialchars($e->getMessage()) . "</p>";
         }
