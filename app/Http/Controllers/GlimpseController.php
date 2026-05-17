@@ -125,8 +125,8 @@ class GlimpseController extends Controller
     {
         $user = $request->user();
         $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'name' => 'sometimes|string|max:30',
+            'email' => 'sometimes|email|max:100|unique:users,email,' . $user->id,
             'profile_photo' => 'sometimes|image|max:5120'
         ]);
 
@@ -272,7 +272,7 @@ class GlimpseController extends Controller
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'battery_level' => 'nullable|integer',
-            'status_note' => 'nullable|string|max:255',
+            'status_note' => 'nullable|string|max:30',
             'location_name' => 'nullable|string|max:255',
         ]);
 
@@ -383,7 +383,7 @@ class GlimpseController extends Controller
 
     public function sendMessage(Request $request)
     {
-        $request->validate(['message' => 'required|string']);
+        $request->validate(['message' => 'required|string|max:500']);
         $user = $request->user();
 
         if (!$user->couple_id) {
@@ -418,7 +418,7 @@ class GlimpseController extends Controller
             'longitude' => 'nullable|numeric',
             'battery_level' => 'nullable|integer',
             'is_charging' => 'nullable|boolean',
-            'status_note' => 'nullable|string|max:255',
+            'status_note' => 'nullable|string|max:30',
             'location_name' => 'nullable|string|max:255',
         ]);
 
