@@ -95,6 +95,7 @@ class GlimpseController extends Controller
                 'latest_photo_url' => $latestPhotoUrl,
                 'last_updated' => $user->updated_at->toIso8601String(),
                 'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
+                'location_history' => $this->getFilteredHistory($user->location_history),
             ],
             'partner_data' => $partner ? [
                 'id' => (int)$partner->id,
@@ -111,6 +112,7 @@ class GlimpseController extends Controller
                 'latest_photo_url' => $partnerLatestPhotoUrl,
                 'last_updated' => $partner->updated_at->toIso8601String(),
                 'last_seen_message_id' => $partner->last_seen_message_id !== null ? (int)$partner->last_seen_message_id : null,
+                'location_history' => $this->getFilteredHistory($partner->location_history),
             ] : null,
             'anniversary_start_date' => $couple ? $couple->anniversary_start_date : null,
             'disconnect_requested_by' => $couple && $couple->disconnect_requested_by !== null ? (int)$couple->disconnect_requested_by : null,
@@ -287,6 +289,10 @@ class GlimpseController extends Controller
         if ($request->has('status_note')) $user->status_note = $request->status_note;
         if ($request->has('location_name')) $user->location_name = $request->location_name;
 
+        if ($request->has('latitude') && $request->has('longitude')) {
+            $this->appendLocationHistory($user, $request->latitude, $request->longitude);
+        }
+
         if ($request->hasFile('photo')) {
             $path = $request->file('photo')->store('glimpse_photos', 'public');
             $user->latest_photo_url = Storage::url($path);
@@ -450,6 +456,44 @@ class GlimpseController extends Controller
         if ($request->has('status_note')) $user->status_note = $request->status_note;
         if ($request->has('location_name')) $user->location_name = $request->location_name;
 
+        // 🏡 Smart Place Anchor & Cozy Labeling (Zenly Style)
+        $lat = $user->latitude;
+        $lng = $user->longitude;
+        if ($lat !== null && $lng !== null) {
+            $hour = (int)now()->format('H');
+            $dayOfWeek = (int)now()->format('N'); // 1 (Mon) - 7 (Sun)
+            
+            // Check if stationary (within ~30 meters of last coordinate in history)
+            $isStationary = false;
+            $history = $user->location_history ?? [];
+            if (!empty($history)) {
+                $last = end($history);
+                $latDiff = abs($last['latitude'] - $lat);
+                $lngDiff = abs($last['longitude'] - $lng);
+                if ($latDiff < 0.0003 && $lngDiff < 0.0003) {
+                    $isStationary = true;
+                }
+            } else {
+                $isStationary = true;
+            }
+            
+            if ($isStationary) {
+                if ($hour >= 20 || $hour < 6) {
+                    $user->location_name = "Home";
+                } elseif ($hour >= 9 && $hour <= 17) {
+                    if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                        $user->location_name = "Work";
+                    } else {
+                        $user->location_name = "School";
+                    }
+                }
+            }
+        }
+
+        if ($request->has('latitude') && $request->has('longitude')) {
+            $this->appendLocationHistory($user, $request->latitude, $request->longitude);
+        }
+
         $user->save();
 
         // Broadcast live state updates to the partner instantly over WebSockets
@@ -514,6 +558,51 @@ class GlimpseController extends Controller
         }
 
         return $isTogether;
+    }
+
+    private function appendLocationHistory($user, $lat, $lng)
+    {
+        if ($lat === null || $lng === null) return;
+
+        $history = $user->location_history ?? [];
+        
+        // Prevent duplicate consecutive updates
+        if (!empty($history)) {
+            $last = end($history);
+            if (abs($last['latitude'] - $lat) < 0.00001 && abs($last['longitude'] - $lng) < 0.00001) {
+                return;
+            }
+        }
+
+        $history[] = [
+            'latitude' => (double)$lat,
+            'longitude' => (double)$lng,
+            'timestamp' => now()->timestamp
+        ];
+
+        // ⏱️ Zenly Trail Decay: Auto-delete coordinates older than 3 hours (10,800 seconds)
+        $threeHoursAgo = now()->timestamp - 10800;
+        $history = array_filter($history, function($entry) use ($threeHoursAgo) {
+            return isset($entry['timestamp']) && $entry['timestamp'] >= $threeHoursAgo;
+        });
+        $history = array_values($history);
+
+        // Keep last 30 coordinates for the footprints trail
+        if (count($history) > 30) {
+            array_shift($history);
+        }
+
+        $user->location_history = $history;
+    }
+
+    private function getFilteredHistory($history)
+    {
+        if (empty($history)) return [];
+        $threeHoursAgo = now()->timestamp - 10800;
+        $filtered = array_filter($history, function($entry) use ($threeHoursAgo) {
+            return isset($entry['timestamp']) && $entry['timestamp'] >= $threeHoursAgo;
+        });
+        return array_values($filtered);
     }
 
     public function sendLoveBurst(Request $request)
