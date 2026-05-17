@@ -31,7 +31,7 @@ jobs:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: public_html/api/  # Ganti dengan nama folder subdomain Anda di cPanel
+        server-dir: public_html/  # Menyimpan project glimpse-api langsung di dalam public_html
         exclude: |
           **/.git*
           **/.git*/**
