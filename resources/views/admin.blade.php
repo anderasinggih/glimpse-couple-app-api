@@ -2230,9 +2230,6 @@
             } catch (err) {
                 console.error(err);
                 respJsonSpan.innerText = "Failed to transmit Protobuf binary: " + err.message;
-            } catch (err) {
-                console.error(err);
-                respJsonSpan.innerText = "Failed to transmit Protobuf binary: " + err.message;
             }
         }
 
