@@ -80,6 +80,15 @@ class GlimpseController extends Controller
                 $loveBurstTimestamp = (double)$loveBurstInfo['timestamp'];
             }
 
+            $activeSchedule = null;
+            if ($user->couple_id) {
+                $activeSchedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
+                    ->where('scheduled_at', '>=', now())
+                    ->whereIn('status', ['pending', 'accepted'])
+                    ->orderBy('scheduled_at', 'asc')
+                    ->first();
+            }
+
             return [
                 'user' => [
                     'id' => (int)$user->id,
@@ -128,6 +137,7 @@ class GlimpseController extends Controller
                 'highest_together_streak' => $couple ? (int)$couple->highest_together_streak : 0,
                 'total_meetings' => (int)$totalMeetings,
                 'love_burst_timestamp' => $loveBurstTimestamp,
+                'active_schedule' => $activeSchedule,
             ];
         });
 
@@ -688,5 +698,116 @@ class GlimpseController extends Controller
                 \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$partner->id}");
             }
         }
+    }
+
+    public function createSchedule(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:200',
+            'scheduled_at' => 'required|date',
+            'reminder_minutes' => 'required|integer|min:0|max:1440',
+        ]);
+
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active relationship'], 400);
+        }
+
+        $schedule = \App\Models\Schedule::create([
+            'couple_id' => $user->couple_id,
+            'creator_id' => $user->id,
+            'title' => $request->title,
+            'scheduled_at' => $request->scheduled_at,
+            'reminder_minutes' => $request->reminder_minutes,
+            'status' => 'pending'
+        ]);
+
+        // Send a custom schedule invite in chat
+        $payload = [
+            'id' => (int)$schedule->id,
+            'title' => $schedule->title,
+            'scheduled_at' => $schedule->scheduled_at->toIso8601String(),
+            'reminder_minutes' => (int)$schedule->reminder_minutes,
+            'status' => $schedule->status,
+            'creator_name' => $user->name,
+        ];
+        
+        $msg = \App\Models\Message::create([
+            'couple_id' => $user->couple_id,
+            'sender_id' => $user->id,
+            'message' => '[SCHEDULE_INVITE]:' . json_encode($payload)
+        ]);
+
+        // Broadcast MessageSent event to partner
+        try {
+            broadcast(new \App\Events\MessageSent($msg))->toOthers();
+        } catch (\Exception $e) {}
+
+        // Clear cache for both users
+        $this->clearGlimpseCache($user->id);
+
+        // Broadcast state update to both partners
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {}
+
+        return response()->json($schedule);
+    }
+
+    public function respondSchedule(Request $request, $id)
+    {
+        $request->validate([
+            'response' => 'required|string|in:accepted,declined'
+        ]);
+
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active relationship'], 400);
+        }
+
+        $schedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->firstOrFail();
+
+        $schedule->status = $request->response;
+        $schedule->save();
+
+        // Send a custom chat notification about the response
+        $msgText = $request->response === 'accepted' ? "Accepted kencan: '{$schedule->title}'! ❤️" : "Declined kencan: '{$schedule->title}'";
+        
+        $msg = \App\Models\Message::create([
+            'couple_id' => $user->couple_id,
+            'sender_id' => $user->id,
+            'message' => "[SYSTEM]:{$msgText}"
+        ]);
+
+        // Broadcast MessageSent
+        try {
+            broadcast(new \App\Events\MessageSent($msg))->toOthers();
+        } catch (\Exception $e) {}
+
+        // Clear cache
+        $this->clearGlimpseCache($user->id);
+
+        // Broadcast state update
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {}
+
+        return response()->json($schedule);
+    }
+
+    public function getSchedules(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json([]);
+        }
+
+        $schedules = \App\Models\Schedule::where('couple_id', $user->couple_id)
+            ->orderBy('scheduled_at', 'desc')
+            ->get();
+
+        return response()->json($schedules);
     }
 }
