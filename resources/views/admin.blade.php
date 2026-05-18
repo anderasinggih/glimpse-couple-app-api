@@ -727,6 +727,105 @@
                             </div>
                         </div>
 
+                        <!-- Box 1.5: Glimpse Flash Debugger & Simulator -->
+                        <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4">
+                            <h4 class="text-lg font-bold flex items-center space-x-2">
+                                <span class="w-1.5 h-6 rounded bg-orange-500 inline-block"></span>
+                                <span>Glimpse Flash Simulator & Storage Doctor</span>
+                            </h4>
+                            <p class="text-xs text-white/50">Diagnose media uploads, simulate high-fidelity photo Flash timeline postings, and check server-side physical storage symlink connectivity.</p>
+                            
+                            <div class="space-y-3 pt-2 text-xs">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Sender User</label>
+                                        <select id="flashSenderSelect" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Battery Level</label>
+                                        <input type="number" id="flashBattery" value="88" min="0" max="100" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Latitude</label>
+                                        <input type="text" id="flashLat" value="-6.9740" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Longitude</label>
+                                        <input type="text" id="flashLon" value="107.6303" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Location Name</label>
+                                    <input type="text" id="flashLocName" value="Dewa Diagnostic Lab" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Status Note</label>
+                                    <input type="text" id="flashStatus" value="Testing Glimpse Flash 📸" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                </div>
+
+                                <div class="p-3 bg-slate-900/60 border border-white/5 rounded-xl space-y-3">
+                                    <label class="block text-[10px] text-orange-400 uppercase font-semibold">Flash Media File Source</label>
+                                    <input type="file" id="flashFileInput" accept="image/*" class="block w-full text-xs text-white/50 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 file:cursor-pointer">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-[9px] text-white/30">Or use instant generator:</span>
+                                        <button onclick="generateMockFlashImage()" class="px-2 py-0.5 rounded bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-[9px] font-bold border border-orange-500/20 transition-all">
+                                            Generate 1-Click Aesthetic Image
+                                        </button>
+                                    </div>
+                                    <div id="flashImagePreviewWrapper" class="hidden flex items-center space-x-3 pt-1">
+                                        <img id="flashImagePreview" src="" class="w-12 h-12 rounded-lg object-cover border border-white/20">
+                                        <span class="text-[9px] text-emerald-400 font-mono">Image loaded & optimized successfully!</span>
+                                    </div>
+                                </div>
+
+                                <button onclick="sendSimulatedFlash()" class="w-full py-2.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-500 hover:text-slate-950 border border-orange-500/30 font-bold transition-all flex items-center justify-center space-x-2">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping"></span>
+                                    <span>POST Simulated Glimpse Flash</span>
+                                </button>
+                            </div>
+
+                            <!-- Flash Diagnostic Output Box -->
+                            <div id="diag-flash-output" class="hidden p-3 rounded-xl bg-slate-950/70 border border-white/5 text-[9px] font-mono space-y-2">
+                                <div>
+                                    <span class="text-orange-400 block font-bold uppercase text-[8px]">Upload Trace & File Info</span>
+                                    <span id="diag-flash-trace" class="text-white break-all block whitespace-pre-wrap"></span>
+                                </div>
+                            </div>
+
+                            <!-- Symlink Doctor Widget -->
+                            <div class="p-3 bg-slate-950/40 border border-white/5 rounded-xl space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] text-white font-bold uppercase tracking-wider">Storage Symlink Status</span>
+                                    <button onclick="diagnoseStorageSymlink()" class="text-[9px] text-activeCyan hover:underline font-semibold">Refresh Diagnostics</button>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-[9px] font-mono">
+                                    <div class="p-2 rounded bg-slate-900 border border-white/5 flex flex-col">
+                                        <span class="text-white/40">public/storage:</span>
+                                        <span id="symlinkStatusExists" class="font-bold text-white">Loading...</span>
+                                    </div>
+                                    <div class="p-2 rounded bg-slate-900 border border-white/5 flex flex-col">
+                                        <span class="text-white/40">Writeable:</span>
+                                        <span id="symlinkStatusWriteable" class="font-bold text-white">Loading...</span>
+                                    </div>
+                                </div>
+                                <div id="symlinkFixerPanel" class="hidden pt-1.5">
+                                    <button onclick="fixStorageSymlink()" class="w-full py-1.5 rounded bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 font-bold text-[10px] transition-all flex items-center justify-center space-x-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Run Symlink Doctor Fixer</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Box 2: Protobuf Interactive Sandbox -->
                         <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4">
                             <h4 class="text-lg font-bold flex items-center space-x-2">
@@ -904,6 +1003,8 @@
                 if (response.ok) {
                     const data = await response.json();
                     updateUI(data);
+                    // Defer to prevent blocking UI load
+                    setTimeout(diagnoseStorageSymlink, 100);
                 } else if (response.status === 401) {
                     handleLogout();
                 }
@@ -947,7 +1048,8 @@
                 'dewaPruneUserSelect', 
                 'dewaLinkUser1Select', 
                 'dewaLinkUser2Select',
-                'diagUserSelect'
+                'diagUserSelect',
+                'flashSenderSelect'
             ];
 
             selects.forEach(id => {
@@ -2128,6 +2230,248 @@
             } catch (err) {
                 console.error(err);
                 respJsonSpan.innerText = "Failed to transmit Protobuf binary: " + err.message;
+            } catch (err) {
+                console.error(err);
+                respJsonSpan.innerText = "Failed to transmit Protobuf binary: " + err.message;
+            }
+        }
+
+        // --- GLIMPSE FLASH SIMULATOR & STORAGE DIAGNOSTICS HANDLERS ---
+        let mockFlashImageBase64 = '';
+
+        function generateMockFlashImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // Draw a gorgeous aesthetic gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+            gradient.addColorStop(0, '#f97316'); // Orange
+            gradient.addColorStop(0.5, '#ec4899'); // Pink
+            gradient.addColorStop(1, '#a855f7'); // Purple
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 512);
+
+            // Draw clean subtle grid patterns for that premium blueprint look
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = 1;
+            for (let i = 32; i < 512; i += 32) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0); ctx.lineTo(i, 512);
+                ctx.moveTo(0, i); ctx.lineTo(512, i);
+                ctx.stroke();
+            }
+
+            // Draw a cute retro camera graphic
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.roundRect(156, 180, 200, 150, 24);
+            ctx.fill();
+            
+            // Camera lens
+            ctx.fillStyle = '#1e1b4b'; // Deep Indigo
+            ctx.beginPath();
+            ctx.arc(256, 255, 50, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 6;
+            ctx.stroke();
+
+            // Flash light
+            ctx.fillStyle = '#facc15'; // Amber Yellow
+            ctx.beginPath();
+            ctx.arc(310, 215, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw high-fidelity typography
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "Outfit", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('GLIMPSE FLASH', 256, 380);
+
+            ctx.font = '14px "Outfit", sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillText('Simulated E2E Media Diagnostics', 256, 405);
+
+            ctx.font = 'bold 10px monospace';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fillText('TIMESTAMP: ' + new Date().toISOString(), 256, 440);
+
+            // Save base64 string
+            mockFlashImageBase64 = canvas.toDataURL('image/png');
+
+            // Show preview
+            document.getElementById('flashImagePreviewWrapper').classList.remove('hidden');
+            document.getElementById('flashImagePreview').src = mockFlashImageBase64;
+        }
+
+        async function sendSimulatedFlash() {
+            const userId = document.getElementById('flashSenderSelect').value;
+            const battery = document.getElementById('flashBattery').value;
+            const lat = document.getElementById('flashLat').value;
+            const lon = document.getElementById('flashLon').value;
+            const locName = document.getElementById('flashLocName').value;
+            const status = document.getElementById('flashStatus').value;
+            const fileInput = document.getElementById('flashFileInput');
+
+            if (!userId) {
+                alert("Please select a sender user.");
+                return;
+            }
+
+            const outputBox = document.getElementById('diag-flash-output');
+            const traceSpan = document.getElementById('diag-flash-trace');
+
+            outputBox.classList.remove('hidden');
+            traceSpan.innerHTML = '<span class="text-orange-400">Initializing upload simulation...</span>\n';
+
+            // 1. Read file or fallback to generated mock image
+            let base64Image = mockFlashImageBase64;
+
+            if (fileInput.files.length > 0) {
+                traceSpan.innerHTML += '<span class="text-white/50">Reading selected image file...</span>\n';
+                const file = fileInput.files[0];
+                base64Image = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            if (!base64Image) {
+                traceSpan.innerHTML += '<span class="text-amber-400">⚠️ No image source provided. Automatically generating a mock gradient flash to test the API...</span>\n';
+                generateMockFlashImage();
+                base64Image = mockFlashImageBase64;
+            }
+
+            traceSpan.innerHTML += '<span class="text-white/50">Posting simulated payload to Glimpse API...</span>\n';
+
+            const token = localStorage.getItem('glimpse_admin_token');
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({
+                        action: 'simulate_flash_post',
+                        user_id: userId,
+                        latitude: lat ? parseFloat(lat) : null,
+                        longitude: lon ? parseFloat(lon) : null,
+                        location_name: locName,
+                        status_note: status,
+                        battery_level: battery ? parseInt(battery) : null,
+                        photo_base64: base64Image
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    traceSpan.innerHTML += `<span class="text-emerald-400">⚡️ SUCCESS: Glimpse Flash record created and broadcasted!</span>\n\n`;
+                    traceSpan.innerHTML += `<span class="text-orange-400">Database Record:</span>\n` + JSON.stringify(result.flash, null, 4) + `\n\n`;
+                    traceSpan.innerHTML += `<span class="text-orange-400">Public Storage URL:</span>\n<a href="${result.public_storage_url}" target="_blank" class="text-activeCyan underline break-all">${result.public_storage_url}</a>\n\n`;
+                    traceSpan.innerHTML += `<span class="text-orange-400">Physical Path on Disk:</span>\n<span class="text-white/60">${result.real_path_on_disk}</span>`;
+                    
+                    // Clear inputs
+                    fileInput.value = '';
+                    mockFlashImageBase64 = '';
+                    document.getElementById('flashImagePreviewWrapper').classList.add('hidden');
+
+                    // Force refresh main UI data to show updated statistics!
+                    fetchData();
+                } else {
+                    traceSpan.innerHTML += `<span class="text-rose-400">❌ UPLOAD FAILED:</span> ${result.error || 'Server error ' + response.status}`;
+                }
+            } catch (err) {
+                console.error(err);
+                traceSpan.innerHTML += `<span class="text-rose-400">❌ EXCEPTION ENCOUNTERED:</span> ${err.message}`;
+            }
+        }
+
+        async function diagnoseStorageSymlink() {
+            const token = localStorage.getItem('glimpse_admin_token');
+            const existsSpan = document.getElementById('symlinkStatusExists');
+            const writeableSpan = document.getElementById('symlinkStatusWriteable');
+            const fixerPanel = document.getElementById('symlinkFixerPanel');
+
+            if (!existsSpan || !writeableSpan) return;
+
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: 'diagnose_symlink' })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.public_storage_exists) {
+                        if (result.is_symlink) {
+                            existsSpan.innerText = 'VALID SYMLINK';
+                            existsSpan.className = 'font-bold text-emerald-400';
+                            fixerPanel.classList.add('hidden');
+                        } else {
+                            existsSpan.innerText = 'DIR INSTEAD OF SYMLINK';
+                            existsSpan.className = 'font-bold text-amber-400';
+                            fixerPanel.classList.remove('hidden');
+                        }
+                    } else {
+                        existsSpan.innerText = 'MISSING (404 RISK)';
+                        existsSpan.className = 'font-bold text-rose-500';
+                        fixerPanel.classList.remove('hidden');
+                    }
+
+                    if (result.storage_path_writeable) {
+                        writeableSpan.innerText = 'WRITEABLE';
+                        writeableSpan.className = 'font-bold text-emerald-400';
+                    } else {
+                        writeableSpan.innerText = 'READ-ONLY';
+                        writeableSpan.className = 'font-bold text-rose-500';
+                    }
+                }
+            } catch (err) {
+                console.error("Symlink diagnostics failed:", err);
+            }
+        }
+
+        async function fixStorageSymlink() {
+            const token = localStorage.getItem('glimpse_admin_token');
+            const fixerPanel = document.getElementById('symlinkFixerPanel');
+            if (!confirm("Are you sure you want to run the Storage Symlink Doctor?\n\nThis will attempt to remove any existing/broken public/storage directory links and run 'php artisan storage:link' to restore image accessibility!")) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: 'fix_symlink' })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    alert("Storage Symlink Doctor successfully restored your public storage links!\n\nOutput:\n" + result.output);
+                    diagnoseStorageSymlink();
+                } else {
+                    alert("Symlink Fix failed: " + (result.error || 'Server error'));
+                }
+            } catch (err) {
+                alert("Exception: " + err.message);
             }
         }
 

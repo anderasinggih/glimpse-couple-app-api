@@ -613,6 +613,124 @@ Route::post('/admin/api', function (Request $request) {
             return response($protobufBinary)
                 ->header('Content-Type', 'application/x-protobuf');
 
+        case 'simulate_flash_post':
+            $userId = $request->input('user_id');
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $locationName = $request->input('location_name');
+            $statusNote = $request->input('status_note');
+            $batteryLevel = $request->input('battery_level');
+            $photoBase64 = $request->input('photo_base64');
+
+            $user = User::findOrFail($userId);
+
+            if ($latitude !== null) $user->latitude = (double)$latitude;
+            if ($longitude !== null) $user->longitude = (double)$longitude;
+            if ($locationName !== null) $user->location_name = $locationName;
+            if ($statusNote !== null) $user->status_note = $statusNote;
+            if ($batteryLevel !== null) $user->battery_level = (int)$batteryLevel;
+
+            if ($latitude !== null && $longitude !== null) {
+                $history = json_decode($user->location_history ?: '[]', true) ?: [];
+                $history[] = [
+                    'latitude' => (double)$latitude,
+                    'longitude' => (double)$longitude,
+                    'timestamp' => (double)microtime(true)
+                ];
+                $user->location_history = json_encode(array_slice($history, -50));
+            }
+
+            if (!empty($photoBase64)) {
+                if (preg_match('/^data:image\/(\w+);base64,/', $photoBase64, $type)) {
+                    $photoBase64 = substr($photoBase64, strpos($photoBase64, ',') + 1);
+                    $ext = strtolower($type[1]);
+                } else {
+                    $ext = 'png';
+                }
+                $photoData = base64_decode($photoBase64);
+                if ($photoData === false) {
+                    return response()->json(['error' => 'Invalid base64 image data.'], 400);
+                }
+
+                $filename = 'simulated_' . time() . '_' . uniqid() . '.' . $ext;
+                $path = 'glimpse_photos/' . $filename;
+                \Storage::disk('public')->put($path, $photoData);
+
+                $user->latest_photo_url = \Storage::url($path);
+            }
+
+            $user->save();
+
+            try {
+                \Illuminate\Support\Facades\Cache::forget("glimpse_user_state_{$user->id}");
+            } catch (\Exception $e) {}
+
+            $flash = null;
+            if ($user->couple_id) {
+                $flash = \App\Models\Flash::create([
+                    'couple_id' => $user->couple_id,
+                    'sender_id' => $user->id,
+                    'photo_url' => $user->latest_photo_url,
+                    'latitude' => $user->latitude,
+                    'longitude' => $user->longitude,
+                    'location_name' => $user->location_name,
+                    'status_note' => $user->status_note,
+                    'battery_level' => $user->battery_level
+                ]);
+
+                try {
+                    broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+                } catch (\Exception $e) {}
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Simulated Glimpse Flash posted successfully!',
+                'user' => $user,
+                'flash' => $flash,
+                'public_storage_url' => $user->latest_photo_url,
+                'real_path_on_disk' => storage_path('app/public/' . (isset($path) ? $path : ''))
+            ]);
+
+        case 'diagnose_symlink':
+            $publicStorageExists = file_exists(public_path('storage'));
+            $isSymlink = is_link(public_path('storage'));
+            $target = $isSymlink ? readlink(public_path('storage')) : null;
+            
+            return response()->json([
+                'public_storage_exists' => $publicStorageExists,
+                'is_symlink' => $isSymlink,
+                'symlink_target' => $target,
+                'storage_path_writeable' => is_writable(storage_path('app/public')),
+            ]);
+
+        case 'fix_symlink':
+            try {
+                if (file_exists(public_path('storage'))) {
+                    if (is_link(public_path('storage'))) {
+                        unlink(public_path('storage'));
+                    } else if (is_dir(public_path('storage'))) {
+                        @rmdir(public_path('storage'));
+                    }
+                }
+                
+                \Illuminate\Support\Facades\Artisan::call('storage:link');
+                $output = \Illuminate\Support\Facades\Artisan::output();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'storage:link executed successfully!',
+                    'output' => $output,
+                    'public_storage_exists' => file_exists(public_path('storage')),
+                    'is_symlink' => is_link(public_path('storage'))
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+
         default:
             return response()->json(['error' => 'Unknown action.'], 400);
     }
