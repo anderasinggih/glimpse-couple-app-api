@@ -1219,7 +1219,7 @@
         let liveWS = null;
         let wsPingInterval = null;
 
-        function decodeProtobufJS(base64Str) {
+        function decodeProtobufJS(base64Str, event = '') {
             try {
                 const binStr = atob(base64Str);
                 const len = binStr.length;
@@ -1238,18 +1238,35 @@
                     
                     if (wireType === 0) { // Varint
                         const val = decodeVarint();
-                        if (fieldNum === 1) result.id = val;
-                        else if (fieldNum === 2) result.room_id = val;
-                        else if (fieldNum === 3) result.sender_id = val;
-                        else result[`field_${fieldNum}`] = val;
+                        if (event.includes('Typing')) {
+                            if (fieldNum === 1) result.user_id = val;
+                            else if (fieldNum === 2) result.is_typing = val !== 0;
+                        } else if (event.includes('PartnerStateUpdated')) {
+                            if (fieldNum === 1) result.user_id = val;
+                            else if (fieldNum === 4) result.battery_level = val;
+                            else if (fieldNum === 5) result.is_charging = val !== 0;
+                        } else {
+                            if (fieldNum === 1) result.id = val;
+                            else if (fieldNum === 2) result.room_id = val;
+                            else if (fieldNum === 3) result.sender_id = val;
+                            else result[`field_${fieldNum}`] = val;
+                        }
                     } else if (wireType === 2) { // Length-delimited
                         const length = decodeVarint();
                         const strBytes = bytes.slice(offset, offset + length);
                         offset += length;
                         const text = new TextDecoder().decode(strBytes);
-                        if (fieldNum === 4) result.message = text;
-                        else if (fieldNum === 5) result.created_at = text;
-                        else result[`field_${fieldNum}`] = text;
+                        if (event.includes('PartnerStateUpdated')) {
+                            if (fieldNum === 2) result.latitude = text;
+                            else if (fieldNum === 3) result.longitude = text;
+                            else if (fieldNum === 6) result.status_note = text;
+                            else if (fieldNum === 7) result.location_name = text;
+                            else if (fieldNum === 8) result.wifi_bssid = text;
+                        } else {
+                            if (fieldNum === 4) result.message = text;
+                            else if (fieldNum === 5) result.created_at = text;
+                            else result[`field_${fieldNum}`] = text;
+                        }
                     } else {
                         break;
                     }
@@ -1311,7 +1328,7 @@
             // Check if Protobuf payload is inside data
             let pbDecoded = null;
             if (data && typeof data === 'object' && data.pb) {
-                pbDecoded = decodeProtobufJS(data.pb);
+                pbDecoded = decodeProtobufJS(data.pb, event);
             }
             
             let dataStr = typeof data === 'object' ? JSON.stringify(data) : data;
@@ -1326,6 +1343,81 @@
                 const saving = Math.round(((rawJsonBytes - pbBytes) / rawJsonBytes) * 100);
                 const rawHex = base64ToHex(data.pb);
                 
+                let detailsHtml = '';
+                let tagsHtml = '';
+                
+                if (event.includes('Typing')) {
+                    detailsHtml = `
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
+                            <span class="block text-white/40 text-[8px] uppercase">User ID</span>
+                            <span class="font-bold text-white">${pbDecoded.user_id || '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
+                            <span class="block text-white/40 text-[8px] uppercase">Is Typing</span>
+                            <span class="font-bold text-activeCyan">${pbDecoded.is_typing ? 'TRUE' : 'FALSE'}</span>
+                        </div>
+                    `;
+                    tagsHtml = `
+                        <div><span class="text-emerald-400 font-bold">1</span> = <span class="text-white">${pbDecoded.user_id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(User ID)</span></div>
+                        <div><span class="text-emerald-400 font-bold">2</span> = <span class="text-emerald-300">${pbDecoded.is_typing ? '1 (True)' : '0 (False)'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Is Typing)</span></div>
+                    `;
+                } else if (event.includes('PartnerStateUpdated')) {
+                    detailsHtml = `
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
+                            <span class="block text-white/40 text-[8px] uppercase">User ID</span>
+                            <span class="font-bold text-white">${pbDecoded.user_id || '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
+                            <span class="block text-white/40 text-[8px] uppercase">Battery</span>
+                            <span class="font-bold text-white">${pbDecoded.battery_level !== undefined ? pbDecoded.battery_level + '%' : '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
+                            <span class="block text-white/40 text-[8px] uppercase">Coordinates</span>
+                            <span class="font-bold text-activeCyan">${pbDecoded.latitude || '-'}, ${pbDecoded.longitude || '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
+                            <span class="block text-white/40 text-[8px] uppercase">Location Name</span>
+                            <span class="text-white break-words">${pbDecoded.location_name || '-'}</span>
+                        </div>
+                    `;
+                    tagsHtml = `
+                        <div><span class="text-emerald-400 font-bold">1</span> = <span class="text-white">${pbDecoded.user_id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(User ID)</span></div>
+                        <div><span class="text-emerald-400 font-bold">2</span> = <span class="text-emerald-300">"${pbDecoded.latitude || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Latitude)</span></div>
+                        <div><span class="text-emerald-400 font-bold">3</span> = <span class="text-emerald-300">"${pbDecoded.longitude || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Longitude)</span></div>
+                        <div><span class="text-emerald-400 font-bold">4</span> = <span class="text-white">${pbDecoded.battery_level !== undefined ? pbDecoded.battery_level : '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Battery Level)</span></div>
+                        <div><span class="text-emerald-400 font-bold">5</span> = <span class="text-white">${pbDecoded.is_charging ? '1 (Charging)' : '0'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Is Charging)</span></div>
+                        <div><span class="text-emerald-400 font-bold">6</span> = <span class="text-white/80">"${pbDecoded.status_note || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Status Note)</span></div>
+                        <div><span class="text-emerald-400 font-bold">7</span> = <span class="text-white/80">"${pbDecoded.location_name || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Location Name)</span></div>
+                        <div><span class="text-emerald-400 font-bold">8</span> = <span class="text-white/80">"${pbDecoded.wifi_bssid || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Wifi BSSID)</span></div>
+                    `;
+                } else {
+                    detailsHtml = `
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
+                            <span class="block text-white/40 text-[8px] uppercase">Message ID</span>
+                            <span class="font-bold text-white">${pbDecoded.id || '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
+                            <span class="block text-white/40 text-[8px] uppercase">Sender ID</span>
+                            <span class="font-bold text-white">${pbDecoded.sender_id || '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
+                            <span class="block text-white/40 text-[8px] uppercase">Message Content</span>
+                            <span class="font-bold text-activeCyan break-words">${pbDecoded.message || '-'}</span>
+                        </div>
+                        <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
+                            <span class="block text-white/40 text-[8px] uppercase">Created At</span>
+                            <span class="text-white">${pbDecoded.created_at || '-'}</span>
+                        </div>
+                    `;
+                    tagsHtml = `
+                        <div><span class="text-emerald-400 font-bold">1</span> = <span class="text-white">${pbDecoded.id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Message ID)</span></div>
+                        <div><span class="text-emerald-400 font-bold">2</span> = <span class="text-white">${pbDecoded.room_id || '0'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Room ID)</span></div>
+                        <div><span class="text-emerald-400 font-bold">3</span> = <span class="text-white">${pbDecoded.sender_id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Sender ID)</span></div>
+                        <div><span class="text-emerald-400 font-bold">4</span> = <span class="text-emerald-300">"${pbDecoded.message || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Message)</span></div>
+                        <div><span class="text-emerald-400 font-bold">5</span> = <span class="text-white/80">"${pbDecoded.created_at || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Created At)</span></div>
+                    `;
+                }
+                
                 pbSection = `
                     <div class="mt-2 ml-4 p-3 rounded-xl bg-activeCyan/10 border border-activeCyan/20 text-[10px] space-y-1.5 shadow-lg shadow-activeCyan/5 relative overflow-hidden group">
                         <div class="absolute -right-8 -bottom-8 w-16 h-16 rounded-full bg-activeCyan/5 blur-md group-hover:scale-150 transition-all"></div>
@@ -1337,22 +1429,7 @@
                             <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[9px] border border-emerald-500/20">-${saving}% Size Saved</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 font-mono text-[9px]">
-                            <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
-                                <span class="block text-white/40 text-[8px] uppercase">Message ID</span>
-                                <span class="font-bold text-white">${pbDecoded.id || '-'}</span>
-                            </div>
-                            <div class="p-1.5 bg-slate-950/60 rounded border border-white/5">
-                                <span class="block text-white/40 text-[8px] uppercase">Sender ID</span>
-                                <span class="font-bold text-white">${pbDecoded.sender_id || '-'}</span>
-                            </div>
-                            <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
-                                <span class="block text-white/40 text-[8px] uppercase">Message Content</span>
-                                <span class="font-bold text-activeCyan break-words">${pbDecoded.message || '-'}</span>
-                            </div>
-                            <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
-                                <span class="block text-white/40 text-[8px] uppercase">Created At</span>
-                                <span class="text-white">${pbDecoded.created_at || '-'}</span>
-                            </div>
+                            ${detailsHtml}
                             <!-- PURE WHATSAPP-STYLE TAGS -->
                             <div class="p-2.5 bg-slate-950 rounded border border-emerald-500/30 col-span-2 font-mono text-[9px] space-y-1 bg-gradient-to-r from-slate-950 to-slate-900 shadow-inner">
                                 <span class="block text-emerald-400 text-[8px] uppercase font-bold tracking-wider mb-1.5 flex items-center space-x-1">
@@ -1360,11 +1437,7 @@
                                     <span>WhatsApp-Style Wire Tag View (No JSON)</span>
                                 </span>
                                 <div class="text-[8.5px] text-white/90 space-y-0.5">
-                                    <div><span class="text-emerald-400 font-bold">1</span> = <span class="text-white">${pbDecoded.id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Message ID)</span></div>
-                                    <div><span class="text-emerald-400 font-bold">2</span> = <span class="text-white">${pbDecoded.room_id || '0'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Room ID)</span></div>
-                                    <div><span class="text-emerald-400 font-bold">3</span> = <span class="text-white">${pbDecoded.sender_id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Sender ID)</span></div>
-                                    <div><span class="text-emerald-400 font-bold">4</span> = <span class="text-emerald-300">"${pbDecoded.message || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Message)</span></div>
-                                    <div><span class="text-emerald-400 font-bold">5</span> = <span class="text-white/80">"${pbDecoded.created_at || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Created At)</span></div>
+                                    ${tagsHtml}
                                 </div>
                             </div>
                             <!-- RAW PROTOBUF BINARY / HEX LOGGER -->

@@ -218,6 +218,84 @@ class GlimpseProtobuf
         return $msg;
     }
 
+    public static function encodeTyping(int $userId, bool $isTyping): string
+    {
+        $data = '';
+        
+        // Field 1: user_id (Varint)
+        $data .= self::writeTag(1, 0);
+        $data .= self::writeVarint($userId);
+        
+        // Field 2: is_typing (Varint)
+        $data .= self::writeTag(2, 0);
+        $data .= self::writeVarint($isTyping ? 1 : 0);
+        
+        return $data;
+    }
+
+    public static function encodeStateUpdated($user): string
+    {
+        $data = '';
+        
+        // Field 1: user_id (Varint)
+        $data .= self::writeTag(1, 0);
+        $data .= self::writeVarint($user->id);
+        
+        // Field 2: latitude (Length-delimited String)
+        if (!empty($user->latitude)) {
+            $data .= self::writeTag(2, 2);
+            $latStr = (string)$user->latitude;
+            $data .= self::writeVarint(strlen($latStr));
+            $data .= $latStr;
+        }
+        
+        // Field 3: longitude (Length-delimited String)
+        if (!empty($user->longitude)) {
+            $data .= self::writeTag(3, 2);
+            $lonStr = (string)$user->longitude;
+            $data .= self::writeVarint(strlen($lonStr));
+            $data .= $lonStr;
+        }
+        
+        // Field 4: battery_level (Varint)
+        if ($user->battery_level !== null) {
+            $data .= self::writeTag(4, 0);
+            $data .= self::writeVarint((int)$user->battery_level);
+        }
+        
+        // Field 5: is_charging (Varint)
+        if ($user->is_charging !== null) {
+            $data .= self::writeTag(5, 0);
+            $data .= self::writeVarint($user->is_charging ? 1 : 0);
+        }
+        
+        // Field 6: status_note (Length-delimited String)
+        if (!empty($user->status_note)) {
+            $data .= self::writeTag(6, 2);
+            $noteStr = (string)$user->status_note;
+            $data .= self::writeVarint(strlen($noteStr));
+            $data .= $noteStr;
+        }
+        
+        // Field 7: location_name (Length-delimited String)
+        if (!empty($user->location_name)) {
+            $data .= self::writeTag(7, 2);
+            $locStr = (string)$user->location_name;
+            $data .= self::writeVarint(strlen($locStr));
+            $data .= $locStr;
+        }
+        
+        // Field 8: wifi_bssid (Length-delimited String)
+        if (!empty($user->wifi_bssid)) {
+            $data .= self::writeTag(8, 2);
+            $wifiStr = (string)$user->wifi_bssid;
+            $data .= self::writeVarint(strlen($wifiStr));
+            $data .= $wifiStr;
+        }
+        
+        return $data;
+    }
+
     private static function writeTag(int $fieldNumber, int $wireType): string
     {
         return self::writeVarint(($fieldNumber << 3) | $wireType);
