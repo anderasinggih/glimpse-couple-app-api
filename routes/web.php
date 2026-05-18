@@ -634,13 +634,13 @@ Route::post('/admin/api', function (Request $request) {
                 // Safely attempt location_history (column may not exist on server yet)
                 try {
                     if ($latitude !== null && $longitude !== null) {
-                        $history = json_decode($user->location_history ?: '[]', true) ?: [];
+                        $history = is_array($user->location_history) ? $user->location_history : [];
                         $history[] = [
                             'latitude' => (double)$latitude,
                             'longitude' => (double)$longitude,
                             'timestamp' => (double)microtime(true)
                         ];
-                        $user->location_history = json_encode(array_slice($history, -50));
+                        $user->location_history = array_slice($history, -50);
                     }
                 } catch (\Exception $historyEx) {
                     // Column missing in this deployment - skip silently
