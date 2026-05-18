@@ -29,8 +29,10 @@ class MessageSent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
+        $protobufBinary = \App\Helpers\GlimpseProtobuf::encodeMessage($this->message);
         return [
-            'message' => $this->message
+            'message' => $this->message,
+            'pb' => base64_encode($protobufBinary)
         ];
     }
 }
