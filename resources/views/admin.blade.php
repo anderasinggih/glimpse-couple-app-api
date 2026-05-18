@@ -2297,7 +2297,8 @@
             ctx.fillText('TIMESTAMP: ' + new Date().toISOString(), 256, 440);
 
             // Save base64 string
-            mockFlashImageBase64 = canvas.toDataURL('image/png');
+            // Use JPEG at 55% quality — reduces payload from ~400KB to ~30KB for faster upload
+            mockFlashImageBase64 = canvas.toDataURL('image/jpeg', 0.55);
 
             // Show preview
             document.getElementById('flashImagePreviewWrapper').classList.remove('hidden');
