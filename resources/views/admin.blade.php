@@ -2366,9 +2366,18 @@
                     })
                 });
 
-                const result = await response.json();
+                // Parse response - may be JSON (our handler) or HTML (Laravel error page)
+                let result = null;
+                let rawText = '';
+                try {
+                    rawText = await response.text();
+                    result = JSON.parse(rawText);
+                } catch (parseErr) {
+                    // Server returned HTML error page, not JSON
+                    result = null;
+                }
 
-                if (response.ok && result.success) {
+                if (response.ok && result && result.success) {
                     traceSpan.innerHTML += `<span class="text-emerald-400">⚡️ SUCCESS: Glimpse Flash record created and broadcasted!</span>\n\n`;
                     traceSpan.innerHTML += `<span class="text-orange-400">Database Record:</span>\n` + JSON.stringify(result.flash, null, 4) + `\n\n`;
                     traceSpan.innerHTML += `<span class="text-orange-400">Public Storage URL:</span>\n<a href="${result.public_storage_url}" target="_blank" class="text-activeCyan underline break-all">${result.public_storage_url}</a>\n\n`;
@@ -2382,11 +2391,30 @@
                     // Force refresh main UI data to show updated statistics!
                     fetchData();
                 } else {
-                    traceSpan.innerHTML += `<span class="text-rose-400">❌ UPLOAD FAILED:</span> ${result.error || 'Server error ' + response.status}`;
+                    const httpStatus = `HTTP ${response.status}`;
+                    if (result && result.error) {
+                        // Our PHP try-catch returned a structured error
+                        traceSpan.innerHTML += `<span class="text-rose-400">❌ UPLOAD FAILED (${httpStatus}):</span>\n`;
+                        traceSpan.innerHTML += `<span class="text-amber-400">Exception:</span> ${result.error}\n`;
+                        traceSpan.innerHTML += `<span class="text-amber-400">Class:</span> ${result.exception_class || '?'}\n`;
+                        traceSpan.innerHTML += `<span class="text-amber-400">File:</span> ${result.file || '?'}\n`;
+                        if (result.trace) {
+                            traceSpan.innerHTML += `<span class="text-amber-400">Stack:</span>\n` + result.trace.join('\n');
+                        }
+                    } else if (result && result.message) {
+                        // Laravel's own error response (e.g. {"message": "Server Error"})
+                        traceSpan.innerHTML += `<span class="text-rose-400">❌ SERVER ERROR (${httpStatus}):</span> ${result.message}\n\n`;
+                        traceSpan.innerHTML += `<span class="text-white/40">💡 Tip: git pull belum dijalankan di server, atau ada PHP parse error.</span>\n`;
+                        traceSpan.innerHTML += `<span class="text-white/40">Check laravel.log: </span><a href="/view-logs" target="_blank" class="text-activeCyan underline">/view-logs</a>`;
+                    } else {
+                        // HTML error page - show first 500 chars for clues
+                        traceSpan.innerHTML += `<span class="text-rose-400">❌ NON-JSON ERROR (${httpStatus}):</span>\n`;
+                        traceSpan.innerHTML += `<span class="text-white/60">${rawText.substring(0, 600).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+                    }
                 }
             } catch (err) {
                 console.error(err);
-                traceSpan.innerHTML += `<span class="text-rose-400">❌ EXCEPTION ENCOUNTERED:</span> ${err.message}`;
+                traceSpan.innerHTML += `<span class="text-rose-400">❌ JS EXCEPTION:</span> ${err.message}`;
             }
         }
 
