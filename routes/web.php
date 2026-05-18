@@ -593,6 +593,15 @@ Route::post('/admin/api', function (Request $request) {
                 'room_id' => $roomId
             ]);
 
+            // Automatically mark all messages in this room as read for the sender!
+            if ($msg->id > $user->last_seen_message_id) {
+                $user->last_seen_message_id = $msg->id;
+            }
+            $map = json_decode($user->last_seen_room_messages ?: '{}', true) ?: [];
+            $map[$roomId ?: 0] = (int)$msg->id;
+            $user->last_seen_room_messages = json_encode($map);
+            $user->save();
+
             // Broadcast the Protobuf message
             try {
                 broadcast(new \App\Events\MessageSent($msg))->toOthers();

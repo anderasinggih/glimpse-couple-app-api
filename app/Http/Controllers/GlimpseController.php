@@ -510,6 +510,16 @@ class GlimpseController extends Controller
             'room_id' => $roomId
         ]);
 
+        // Automatically mark all messages in this room as read for the sender!
+        if ($msg->id > $user->last_seen_message_id) {
+            $user->last_seen_message_id = $msg->id;
+        }
+        $map = json_decode($user->last_seen_room_messages ?: '{}', true) ?: [];
+        $map[$roomId ?: 0] = (int)$msg->id;
+        $user->last_seen_room_messages = json_encode($map);
+        $user->save();
+        $this->clearGlimpseCache($user->id);
+
         // Broadcast MessageSent event to the partner over WebSockets
         try {
             broadcast(new \App\Events\MessageSent($msg))->toOthers();
@@ -531,7 +541,22 @@ class GlimpseController extends Controller
         $request->validate(['message_id' => 'required|integer']);
         $user = $request->user();
 
-        $user->last_seen_message_id = $request->message_id;
+        $message = \App\Models\Message::find($request->message_id);
+        if ($message) {
+            $roomId = $message->room_id ?: 0;
+            $map = json_decode($user->last_seen_room_messages ?: '{}', true) ?: [];
+            
+            $currentLastSeen = $map[$roomId] ?? 0;
+            if ($request->message_id > $currentLastSeen) {
+                $map[$roomId] = (int)$request->message_id;
+                $user->last_seen_room_messages = json_encode($map);
+            }
+        }
+
+        if ($request->message_id > $user->last_seen_message_id) {
+            $user->last_seen_message_id = $request->message_id;
+        }
+
         $user->save();
         $this->clearGlimpseCache($user->id);
 
@@ -541,7 +566,11 @@ class GlimpseController extends Controller
             \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
         }
 
-        return response()->json(['status' => 'ok', 'last_seen_message_id' => $user->last_seen_message_id]);
+        return response()->json([
+            'status' => 'ok', 
+            'last_seen_message_id' => $user->last_seen_message_id,
+            'last_seen_room_messages' => json_decode($user->last_seen_room_messages ?: '{}', true)
+        ]);
     }
 
     public function updateStatus(Request $request)
@@ -1049,8 +1078,16 @@ class GlimpseController extends Controller
                 $unreadQuery->where('room_id', $room->id);
             }
 
-            if ($user->last_seen_message_id !== null) {
-                $unreadQuery->where('id', '>', $user->last_seen_message_id);
+            $roomIdKey = $room->is_main ? 0 : $room->id;
+            $map = json_decode($user->last_seen_room_messages ?: '{}', true) ?: [];
+            $roomLastSeen = $map[$roomIdKey] ?? ($map[$room->id] ?? null);
+
+            if ($roomLastSeen !== null) {
+                $unreadQuery->where('id', '>', $roomLastSeen);
+            } else {
+                if ($user->last_seen_message_id !== null) {
+                    $unreadQuery->where('id', '>', $user->last_seen_message_id);
+                }
             }
 
             $unreadCount = $unreadQuery->count();
