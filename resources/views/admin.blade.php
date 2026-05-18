@@ -1136,6 +1136,20 @@
             }
         }
 
+        function base64ToHex(base64Str) {
+            try {
+                const binStr = atob(base64Str);
+                let hex = '';
+                for (let i = 0; i < binStr.length; i++) {
+                    const code = binStr.charCodeAt(i).toString(16).padStart(2, '0');
+                    hex += code + ' ';
+                }
+                return hex.trim().toUpperCase();
+            } catch (e) {
+                return '';
+            }
+        }
+
         function logWSEvent(event, channel, data) {
             const stream = document.getElementById('ws-log-stream');
             if (!stream) return;
@@ -1171,6 +1185,7 @@
                 const rawJsonBytes = new TextEncoder().encode(JSON.stringify(data.message || data)).length;
                 const pbBytes = Math.ceil((data.pb.length * 3) / 4) - (data.pb.indexOf('=') > 0 ? (data.pb.length - data.pb.indexOf('=')) : 0);
                 const saving = Math.round(((rawJsonBytes - pbBytes) / rawJsonBytes) * 100);
+                const rawHex = base64ToHex(data.pb);
                 
                 pbSection = `
                     <div class="mt-2 ml-4 p-3 rounded-xl bg-activeCyan/10 border border-activeCyan/20 text-[10px] space-y-1.5 shadow-lg shadow-activeCyan/5 relative overflow-hidden group">
@@ -1199,6 +1214,15 @@
                                 <span class="block text-white/40 text-[8px] uppercase">Created At</span>
                                 <span class="text-white">${pbDecoded.created_at || '-'}</span>
                             </div>
+                            <!-- RAW PROTOBUF BINARY / HEX LOGGER -->
+                            <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
+                                <span class="block text-amber-400 text-[8px] uppercase font-bold">Raw Hexadecimal Bytes (Kode Acak)</span>
+                                <span class="text-amber-300 break-all select-all font-semibold font-mono text-[8px]">${rawHex}</span>
+                            </div>
+                            <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
+                                <span class="block text-white/40 text-[8px] uppercase">Raw Base64 Encoded Payload</span>
+                                <span class="text-white/60 break-all select-all font-mono text-[8.5px]">${data.pb}</span>
+                            </div>
                         </div>
                         <div class="flex justify-between items-center text-[8px] font-mono text-white/40 pt-1 border-t border-white/5">
                             <span>Protobuf size: <b>${pbBytes} bytes</b></span>
@@ -1220,6 +1244,11 @@
             
             stream.appendChild(logItem);
             stream.scrollTop = stream.scrollHeight;
+            
+            // Prune old logs to keep client-side DOM extremely light (0% server load, protects browser memory)
+            while (stream.children.length > 30) {
+                stream.removeChild(stream.firstChild);
+            }
         }
 
         function clearWSLogs() {
