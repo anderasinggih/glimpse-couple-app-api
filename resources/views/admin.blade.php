@@ -2033,6 +2033,7 @@
                     const base64 = btoa(binaryString);
                     const decoded = decodeProtobufJS(base64);
 
+                    const duration = (performance.now() - startTime).toFixed(2);
                     const waStyle = `⚡️ WhatsApp-Style Wire Tag View (No JSON):
 1 = ${decoded.id || '-'} (Message ID)
 2 = ${decoded.room_id || '0'} (Room ID)
