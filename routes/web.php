@@ -614,83 +614,108 @@ Route::post('/admin/api', function (Request $request) {
                 ->header('Content-Type', 'application/x-protobuf');
 
         case 'simulate_flash_post':
-            $userId = $request->input('user_id');
-            $latitude = $request->input('latitude');
-            $longitude = $request->input('longitude');
-            $locationName = $request->input('location_name');
-            $statusNote = $request->input('status_note');
-            $batteryLevel = $request->input('battery_level');
-            $photoBase64 = $request->input('photo_base64');
-
-            $user = User::findOrFail($userId);
-
-            if ($latitude !== null) $user->latitude = (double)$latitude;
-            if ($longitude !== null) $user->longitude = (double)$longitude;
-            if ($locationName !== null) $user->location_name = $locationName;
-            if ($statusNote !== null) $user->status_note = $statusNote;
-            if ($batteryLevel !== null) $user->battery_level = (int)$batteryLevel;
-
-            if ($latitude !== null && $longitude !== null) {
-                $history = json_decode($user->location_history ?: '[]', true) ?: [];
-                $history[] = [
-                    'latitude' => (double)$latitude,
-                    'longitude' => (double)$longitude,
-                    'timestamp' => (double)microtime(true)
-                ];
-                $user->location_history = json_encode(array_slice($history, -50));
-            }
-
-            if (!empty($photoBase64)) {
-                if (preg_match('/^data:image\/(\w+);base64,/', $photoBase64, $type)) {
-                    $photoBase64 = substr($photoBase64, strpos($photoBase64, ',') + 1);
-                    $ext = strtolower($type[1]);
-                } else {
-                    $ext = 'png';
-                }
-                $photoData = base64_decode($photoBase64);
-                if ($photoData === false) {
-                    return response()->json(['error' => 'Invalid base64 image data.'], 400);
-                }
-
-                $filename = 'simulated_' . time() . '_' . uniqid() . '.' . $ext;
-                $path = 'glimpse_photos/' . $filename;
-                \Storage::disk('public')->put($path, $photoData);
-
-                $user->latest_photo_url = \Storage::url($path);
-            }
-
-            $user->save();
-
             try {
-                \Illuminate\Support\Facades\Cache::forget("glimpse_user_state_{$user->id}");
-            } catch (\Exception $e) {}
+                $userId = $request->input('user_id');
+                $latitude = $request->input('latitude');
+                $longitude = $request->input('longitude');
+                $locationName = $request->input('location_name');
+                $statusNote = $request->input('status_note');
+                $batteryLevel = $request->input('battery_level');
+                $photoBase64 = $request->input('photo_base64');
 
-            $flash = null;
-            if ($user->couple_id) {
-                $flash = \App\Models\Flash::create([
-                    'couple_id' => $user->couple_id,
-                    'sender_id' => $user->id,
-                    'photo_url' => $user->latest_photo_url,
-                    'latitude' => $user->latitude,
-                    'longitude' => $user->longitude,
-                    'location_name' => $user->location_name,
-                    'status_note' => $user->status_note,
-                    'battery_level' => $user->battery_level
-                ]);
+                $user = User::findOrFail($userId);
+
+                if ($latitude !== null) $user->latitude = (double)$latitude;
+                if ($longitude !== null) $user->longitude = (double)$longitude;
+                if ($locationName !== null) $user->location_name = $locationName;
+                if ($statusNote !== null) $user->status_note = $statusNote;
+                if ($batteryLevel !== null) $user->battery_level = (int)$batteryLevel;
+
+                // Safely attempt location_history (column may not exist on server yet)
+                try {
+                    if ($latitude !== null && $longitude !== null) {
+                        $history = json_decode($user->location_history ?: '[]', true) ?: [];
+                        $history[] = [
+                            'latitude' => (double)$latitude,
+                            'longitude' => (double)$longitude,
+                            'timestamp' => (double)microtime(true)
+                        ];
+                        $user->location_history = json_encode(array_slice($history, -50));
+                    }
+                } catch (\Exception $historyEx) {
+                    // Column missing in this deployment - skip silently
+                }
+
+                $path = null;
+                if (!empty($photoBase64)) {
+                    if (preg_match('/^data:image\/(\w+);base64,/', $photoBase64, $type)) {
+                        $photoBase64 = substr($photoBase64, strpos($photoBase64, ',') + 1);
+                        $ext = strtolower($type[1]);
+                    } else {
+                        $ext = 'png';
+                    }
+                    $photoData = base64_decode($photoBase64);
+                    if ($photoData === false) {
+                        return response()->json(['error' => 'Invalid base64 image data.'], 400);
+                    }
+
+                    // Ensure directory exists
+                    $storageDir = storage_path('app/public/glimpse_photos');
+                    if (!file_exists($storageDir)) {
+                        mkdir($storageDir, 0775, true);
+                    }
+
+                    $filename = 'simulated_' . time() . '_' . uniqid() . '.' . $ext;
+                    $path = 'glimpse_photos/' . $filename;
+                    \Storage::disk('public')->put($path, $photoData);
+                    $user->latest_photo_url = \Storage::url($path);
+                }
+
+                $user->save();
 
                 try {
-                    broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+                    \Illuminate\Support\Facades\Cache::forget("glimpse_user_state_{$user->id}");
                 } catch (\Exception $e) {}
-            }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Simulated Glimpse Flash posted successfully!',
-                'user' => $user,
-                'flash' => $flash,
-                'public_storage_url' => $user->latest_photo_url,
-                'real_path_on_disk' => storage_path('app/public/' . (isset($path) ? $path : ''))
-            ]);
+                $flash = null;
+                if ($user->couple_id) {
+                    $flash = \App\Models\Flash::create([
+                        'couple_id' => $user->couple_id,
+                        'sender_id' => $user->id,
+                        'photo_url' => $user->latest_photo_url,
+                        'latitude' => $user->latitude,
+                        'longitude' => $user->longitude,
+                        'location_name' => $user->location_name,
+                        'status_note' => $user->status_note,
+                        'battery_level' => $user->battery_level
+                    ]);
+
+                    try {
+                        broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+                    } catch (\Exception $e) {}
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Simulated Glimpse Flash posted successfully!',
+                    'user' => $user,
+                    'flash' => $flash,
+                    'user_has_couple' => (bool)$user->couple_id,
+                    'public_storage_url' => $user->latest_photo_url,
+                    'real_path_on_disk' => storage_path('app/public/' . ($path ?? '(no image)'))
+                ]);
+
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => 'PHP Exception: ' . $e->getMessage(),
+                    'exception_class' => get_class($e),
+                    'file' => basename($e->getFile()) . ':' . $e->getLine(),
+                    'trace' => array_slice(array_map(
+                        fn($t) => basename($t['file'] ?? '?') . ':' . ($t['line'] ?? '?') . ' -> ' . ($t['function'] ?? '?'),
+                        $e->getTrace()
+                    ), 0, 6)
+                ], 500);
+            }
 
         case 'diagnose_symlink':
             $publicStorageExists = file_exists(public_path('storage'));
