@@ -1353,6 +1353,20 @@
                                 <span class="block text-white/40 text-[8px] uppercase">Created At</span>
                                 <span class="text-white">${pbDecoded.created_at || '-'}</span>
                             </div>
+                            <!-- PURE WHATSAPP-STYLE TAGS -->
+                            <div class="p-2.5 bg-slate-950 rounded border border-emerald-500/30 col-span-2 font-mono text-[9px] space-y-1 bg-gradient-to-r from-slate-950 to-slate-900 shadow-inner">
+                                <span class="block text-emerald-400 text-[8px] uppercase font-bold tracking-wider mb-1.5 flex items-center space-x-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span>WhatsApp-Style Wire Tag View (No JSON)</span>
+                                </span>
+                                <div class="text-[8.5px] text-white/90 space-y-0.5">
+                                    <div><span class="text-emerald-400 font-bold">1</span> = <span class="text-white">${pbDecoded.id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Message ID)</span></div>
+                                    <div><span class="text-emerald-400 font-bold">2</span> = <span class="text-white">${pbDecoded.room_id || '0'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Room ID)</span></div>
+                                    <div><span class="text-emerald-400 font-bold">3</span> = <span class="text-white">${pbDecoded.sender_id || '-'}</span> <span class="text-white/30 text-[7.5px] font-normal">(Sender ID)</span></div>
+                                    <div><span class="text-emerald-400 font-bold">4</span> = <span class="text-emerald-300">"${pbDecoded.message || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Message)</span></div>
+                                    <div><span class="text-emerald-400 font-bold">5</span> = <span class="text-white/80">"${pbDecoded.created_at || '-'}"</span> <span class="text-white/30 text-[7.5px] font-normal">(Created At)</span></div>
+                                </div>
+                            </div>
                             <!-- RAW PROTOBUF BINARY / HEX LOGGER -->
                             <div class="p-1.5 bg-slate-950/60 rounded border border-white/5 col-span-2">
                                 <span class="block text-amber-400 text-[8px] uppercase font-bold">Raw Hexadecimal Bytes (Kode Acak)</span>
@@ -2019,9 +2033,14 @@
                     const base64 = btoa(binaryString);
                     const decoded = decodeProtobufJS(base64);
 
-                    const duration = (performance.now() - startTime).toFixed(2);
+                    const waStyle = `⚡️ WhatsApp-Style Wire Tag View (No JSON):
+1 = ${decoded.id || '-'} (Message ID)
+2 = ${decoded.room_id || '0'} (Room ID)
+3 = ${decoded.sender_id || '-'} (Sender ID)
+4 = "${decoded.message || '-'}" (Message)
+5 = "${decoded.created_at || '-'}" (Created At)`;
 
-                    respJsonSpan.innerText = JSON.stringify(decoded, null, 4) + `\n\nResponse Hex Bytes:\n${respHex}`;
+                    respJsonSpan.innerText = waStyle + `\n\nPure Protobuf Decoded Fields:\n` + JSON.stringify(decoded, null, 4) + `\n\nResponse Hex Bytes:\n${respHex}`;
                     statsDiv.innerHTML = `Payload Size: <b>${reqBytes.length} bytes</b> | Response Size: <b>${respBytes.length} bytes</b> | Latency: <b>${duration} ms</b>`;
                     
                     // Clear inputs

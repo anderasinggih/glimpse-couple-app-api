@@ -575,29 +575,40 @@ class GlimpseController extends Controller
 
     public function updateStatus(Request $request)
     {
-        $request->validate([
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'battery_level' => 'nullable|integer',
-            'is_charging' => 'nullable|boolean',
-            'status_note' => 'nullable|string|max:30',
-            'location_name' => 'nullable|string|max:255',
-            'wifi_bssid' => 'nullable|string|max:255',
-        ]);
+        $isProtobuf = $request->header('Content-Type') === 'application/x-protobuf';
+        $data = [];
+
+        if ($isProtobuf) {
+            $protoData = $request->getContent();
+            $data = \App\Helpers\GlimpseProtobuf::decodeUserStatus($protoData);
+        } else {
+            $request->validate([
+                'latitude' => 'nullable|numeric',
+                'longitude' => 'nullable|numeric',
+                'battery_level' => 'nullable|integer',
+                'is_charging' => 'nullable|boolean',
+                'status_note' => 'nullable|string|max:30',
+                'location_name' => 'nullable|string|max:255',
+                'wifi_bssid' => 'nullable|string|max:255',
+            ]);
+            $data = $request->all();
+        }
 
         $user = $request->user();
         
-        if ($request->has('latitude')) $user->latitude = $request->latitude;
-        if ($request->has('longitude')) $user->longitude = $request->longitude;
-        if ($request->has('battery_level')) $user->battery_level = $request->battery_level;
-        if ($request->has('is_charging')) $user->is_charging = $request->is_charging ? 1 : 0;
-        if ($request->has('status_note')) $user->status_note = $request->status_note;
-        if ($request->has('location_name')) $user->location_name = $request->location_name;
+        if (array_key_exists('latitude', $data) && $data['latitude'] !== null) $user->latitude = $data['latitude'];
+        if (array_key_exists('longitude', $data) && $data['longitude'] !== null) $user->longitude = $data['longitude'];
+        if (array_key_exists('battery_level', $data) && $data['battery_level'] !== null) $user->battery_level = $data['battery_level'];
+        if (array_key_exists('is_charging', $data) && $data['is_charging'] !== null) {
+            $user->is_charging = $data['is_charging'] ? 1 : 0;
+        }
+        if (array_key_exists('status_note', $data) && $data['status_note'] !== null) $user->status_note = $data['status_note'];
+        if (array_key_exists('location_name', $data) && $data['location_name'] !== null) $user->location_name = $data['location_name'];
 
         // 🏡 Smart Place Anchor & Cozy Labeling (Zenly Style)
         $lat = $user->latitude;
         $lng = $user->longitude;
-        $wifiBssid = $request->input('wifi_bssid');
+        $wifiBssid = $data['wifi_bssid'] ?? null;
 
         if ($lat !== null && $lng !== null) {
             $today = now()->format('Y-m-d');
@@ -739,8 +750,8 @@ class GlimpseController extends Controller
             }
         }
 
-        if ($request->has('latitude') && $request->has('longitude')) {
-            $this->appendLocationHistory($user, $request->latitude, $request->longitude);
+        if (isset($data['latitude']) && isset($data['longitude']) && $data['latitude'] !== null && $data['longitude'] !== null) {
+            $this->appendLocationHistory($user, $data['latitude'], $data['longitude']);
         }
 
         $user->save();
