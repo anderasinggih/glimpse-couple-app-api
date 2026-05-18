@@ -90,6 +90,7 @@
                     <button onclick="switchTab('users')" id="tab-users" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">User Management</button>
                     <button onclick="switchTab('couples')" id="tab-couples" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Couple Pairs</button>
                     <button onclick="switchTab('control')" id="tab-control" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Control Center</button>
+                    <button onclick="switchTab('diagnostics')" id="tab-diagnostics" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white flex items-center space-x-1.5"><span class="w-1.5 h-1.5 rounded-full bg-activeCyan animate-pulse"></span><span>Live Debugger</span></button>
                 </nav>
 
                 <div class="flex items-center space-x-3">
@@ -99,7 +100,7 @@
                     </div>
                     <button onclick="handleLogout()" class="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-rose-500/20 hover:border-rose-500/30 text-white/60 hover:text-rose-400 transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                         </svg>
                     </button>
                 </div>
@@ -112,6 +113,7 @@
             <button onclick="switchTab('users')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-users">Users</button>
             <button onclick="switchTab('couples')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-couples">Couples</button>
             <button onclick="switchTab('control')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-control">Control</button>
+            <button onclick="switchTab('diagnostics')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-diagnostics">Debug</button>
         </div>
 
         <!-- MAIN LAYOUT -->
@@ -617,6 +619,142 @@
                     </div>
                 </div>
             </div>
+
+            <!-- LIVE DIAGNOSTICS & PROTOBUF DEBUGGER TAB -->
+            <div id="content-diagnostics" class="tab-content space-y-6 hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h3 class="text-2xl font-bold flex items-center space-x-2">
+                            <span class="w-1.5 h-6 rounded bg-activeCyan inline-block animate-pulse"></span>
+                            <span>Live Diagnostic & Protobuf Console</span>
+                        </h3>
+                        <p class="text-white/50 text-sm">Monitor real-time network packets, inspect pure Protobuf payloads, and run end-to-end API serialization tests.</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-xs">
+                            <span class="text-white/50">Decoder:</span>
+                            <span class="text-activeCyan font-bold">Pure Protobuf v3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    
+                    <!-- LEFT & CENTER: High-Capacity WebSocket Console -->
+                    <div class="xl:col-span-2 p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4 flex flex-col min-h-[600px]">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+                            <h4 class="text-lg font-bold flex items-center space-x-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-electricPurple animate-ping"></span>
+                                <span>Real-time WebSocket Broadcast Inspector</span>
+                            </h4>
+                            <div class="flex items-center space-x-3">
+                                <button onclick="clearDiagWSLogs()" class="text-xs text-white/50 hover:text-white transition-all underline">Clear Term</button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Bar -->
+                        <div class="flex flex-wrap items-center gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/5 text-xs text-white/70">
+                            <span class="font-bold text-white/40 uppercase text-[9px] tracking-wider">Filter Events:</span>
+                            <label class="flex items-center space-x-1.5 cursor-pointer hover:text-white">
+                                <input type="checkbox" id="filter-pb" checked class="rounded border-white/10 bg-slate-900 text-activeCyan focus:ring-0" />
+                                <span>MessageSent (Protobuf)</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer hover:text-white">
+                                <input type="checkbox" id="filter-state" checked class="rounded border-white/10 bg-slate-900 text-emerald-400 focus:ring-0" />
+                                <span>PartnerStateUpdated</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer hover:text-white">
+                                <input type="checkbox" id="filter-burst" checked class="rounded border-white/10 bg-slate-900 text-rose-400 focus:ring-0" />
+                                <span>LoveBurstSent</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer hover:text-white">
+                                <input type="checkbox" id="filter-typing" checked class="rounded border-white/10 bg-slate-900 text-amber-400 focus:ring-0" />
+                                <span>TypingStatus</span>
+                            </label>
+                        </div>
+
+                        <!-- Main IDE-Style Diagnostic Log Console -->
+                        <div id="diag-ws-log-stream" class="flex-grow h-[450px] overflow-y-auto bg-slate-950/85 border border-white/5 rounded-2xl p-4 font-mono text-[10px] space-y-2.5 scrollbar-thin select-all">
+                            <div class="text-white/40 italic">Waiting for events from active couple channels...</div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Sandbox & Live Compiler -->
+                    <div class="space-y-6">
+                        
+                        <!-- Box 1: E2E HTTP Protobuf API Sandbox -->
+                        <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4">
+                            <h4 class="text-lg font-bold flex items-center space-x-2">
+                                <span class="w-1.5 h-6 rounded bg-activeCyan inline-block"></span>
+                                <span>HTTP Protobuf API Simulator</span>
+                            </h4>
+                            <p class="text-xs text-white/50">Directly construct and send simulated Protobuf binary requests to the Laravel API from the browser. Inspect raw request/response bytes!</p>
+                            
+                            <div class="space-y-3 pt-2 text-xs">
+                                <div>
+                                    <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Select Sender User</label>
+                                    <select id="diagUserSelect" onchange="updateDiagRooms()" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-activeCyan">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Target Room</label>
+                                    <select id="diagRoomSelect" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-activeCyan">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Message Text</label>
+                                    <input type="text" id="diagMessageText" placeholder="Enter message text..." class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-activeCyan">
+                                </div>
+                                <button onclick="sendHTTPProtobufRequest()" class="w-full py-2.5 rounded-xl bg-activeCyan/10 hover:bg-activeCyan text-activeCyan hover:text-slate-950 border border-activeCyan/30 font-bold transition-all flex items-center justify-center space-x-2">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-activeCyan animate-ping"></span>
+                                    <span>POST Binary Protobuf</span>
+                                </button>
+                            </div>
+
+                            <!-- REST API Output Box -->
+                            <div id="diag-http-output" class="hidden p-3 rounded-xl bg-slate-950/70 border border-white/5 text-[9px] font-mono space-y-2">
+                                <div>
+                                    <span class="text-amber-400 block font-bold uppercase text-[8px]">Request Hex Bytes</span>
+                                    <span id="diag-http-req-hex" class="text-amber-300/80 break-all block"></span>
+                                </div>
+                                <div>
+                                    <span class="text-emerald-400 block font-bold uppercase text-[8px]">Response Decoded</span>
+                                    <span id="diag-http-resp-json" class="text-white break-all block whitespace-pre-wrap"></span>
+                                </div>
+                                <div class="text-[8px] text-white/30 text-right" id="diag-http-stats"></div>
+                            </div>
+                        </div>
+
+                        <!-- Box 2: Protobuf Interactive Sandbox -->
+                        <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4">
+                            <h4 class="text-lg font-bold flex items-center space-x-2">
+                                <span class="w-1.5 h-6 rounded bg-electricPurple inline-block"></span>
+                                <span>Protobuf Decoder Sandbox</span>
+                            </h4>
+                            <p class="text-xs text-white/50">Paste raw Base64 payloads or spaced Hexadecimal bytes (e.g. `08 C0 0C 1A 05 68 65 6C 6C 6F`) to decode them instantly in the browser!</p>
+                            
+                            <div class="space-y-3 pt-2">
+                                <textarea id="sandboxInput" rows="2" placeholder="Paste Base64 payload or Hex bytes here..." class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white text-xs focus:outline-none focus:border-electricPurple font-mono resize-none"></textarea>
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="decodeSandbox('base64')" class="py-1.5 rounded-lg bg-electricPurple/10 hover:bg-electricPurple text-electricPurple hover:text-white border border-electricPurple/30 font-semibold text-xs transition-all">
+                                        Decode Base64
+                                    </button>
+                                    <button onclick="decodeSandbox('hex')" class="py-1.5 rounded-lg bg-activeCyan/10 hover:bg-activeCyan text-activeCyan hover:text-slate-950 border border-activeCyan/30 font-semibold text-xs transition-all">
+                                        Decode Hex
+                                    </button>
+                                </div>
+
+                                <div id="sandboxOutputWrapper" class="hidden p-3 bg-slate-950/70 border border-white/5 rounded-xl text-[9px] font-mono whitespace-pre-wrap text-activeCyan max-h-36 overflow-y-auto"></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
         </main>
     </div>
 
@@ -808,7 +946,8 @@
                 'clearChatCoupleSelect', 
                 'dewaPruneUserSelect', 
                 'dewaLinkUser1Select', 
-                'dewaLinkUser2Select'
+                'dewaLinkUser2Select',
+                'diagUserSelect'
             ];
 
             selects.forEach(id => {
@@ -1249,6 +1388,31 @@
             while (stream.children.length > 30) {
                 stream.removeChild(stream.firstChild);
             }
+
+            // Log to Diagnostics Stream if it exists
+            const diagStream = document.getElementById('diag-ws-log-stream');
+            if (diagStream) {
+                if (diagStream.innerHTML.includes('Waiting for events')) {
+                    diagStream.innerHTML = '';
+                }
+                
+                // Apply filters
+                let isFiltered = false;
+                if (event.includes('MessageSent') && !document.getElementById('filter-pb').checked) isFiltered = true;
+                else if (event.includes('PartnerStateUpdated') && !document.getElementById('filter-state').checked) isFiltered = true;
+                else if (event.includes('LoveBurstSent') && !document.getElementById('filter-burst').checked) isFiltered = true;
+                else if (event.includes('Typing') && !document.getElementById('filter-typing').checked) isFiltered = true;
+                
+                if (!isFiltered) {
+                    const diagLogItem = logItem.cloneNode(true);
+                    diagStream.appendChild(diagLogItem);
+                    diagStream.scrollTop = diagStream.scrollHeight;
+                    
+                    while (diagStream.children.length > 50) {
+                        diagStream.removeChild(diagStream.firstChild);
+                    }
+                }
+            }
         }
 
         function clearWSLogs() {
@@ -1673,6 +1837,256 @@
             drawSplineLine(canvas, ctx, txHistory, maxSpeedVal, '#BF80FF', 'rgba(191, 128, 255, 0.08)');
         }
 
+        // --- LIVE DIAGNOSTICS & PROTOBUF DEBUGGER SUITE ---
+        function clearDiagWSLogs() {
+            const stream = document.getElementById('diag-ws-log-stream');
+            if (stream) {
+                stream.innerHTML = '<div class="text-white/40 italic">Waiting for events from active couple channels...</div>';
+            }
+        }
+
+        // Lightweight Pure JS Protobuf v3 Encoder matching the Swift/PHP models
+        function encodeProtobufJS(message) {
+            let data = [];
+            
+            // Helper to write varint
+            function writeVarint(val) {
+                let value = val;
+                while (value >= 0x80) {
+                    data.push((value & 0x7F) | 0x80);
+                    value >>= 7;
+                }
+                data.push(value & 0x7F);
+            }
+            
+            // Helper to write tag
+            function writeTag(fieldNum, wireType) {
+                writeVarint((fieldNum << 3) | wireType);
+            }
+            
+            // Field 1: id (Varint)
+            if (message.id) {
+                writeTag(1, 0);
+                writeVarint(message.id);
+            }
+            
+            // Field 2: room_id (Varint)
+            if (message.room_id) {
+                writeTag(2, 0);
+                writeVarint(message.room_id);
+            }
+            
+            // Field 3: sender_id (Varint)
+            if (message.sender_id) {
+                writeTag(3, 0);
+                writeVarint(message.sender_id);
+            }
+            
+            // Field 4: message (Length-delimited string)
+            if (message.message) {
+                const encoder = new TextEncoder();
+                const strBytes = encoder.encode(message.message);
+                writeTag(4, 2);
+                writeVarint(strBytes.length);
+                for (let i = 0; i < strBytes.length; i++) {
+                    data.push(strBytes[i]);
+                }
+            }
+            
+            // Field 5: created_at (Length-delimited string)
+            if (message.created_at) {
+                const encoder = new TextEncoder();
+                const strBytes = encoder.encode(message.created_at);
+                writeTag(5, 2);
+                writeVarint(strBytes.length);
+                for (let i = 0; i < strBytes.length; i++) {
+                    data.push(strBytes[i]);
+                }
+            }
+            
+            return new Uint8Array(data);
+        }
+
+        function uint8ArrayToHex(arr) {
+            let hex = '';
+            for (let i = 0; i < arr.length; i++) {
+                hex += arr[i].toString(16).padStart(2, '0') + ' ';
+            }
+            return hex.trim().toUpperCase();
+        }
+
+        async function updateDiagRooms() {
+            const userId = document.getElementById('diagUserSelect').value;
+            const roomSelect = document.getElementById('diagRoomSelect');
+            if (!userId) return;
+
+            const token = localStorage.getItem('glimpse_admin_token');
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: 'get_user_rooms', user_id: userId })
+                });
+
+                if (response.ok) {
+                    const rooms = await response.json();
+                    roomSelect.innerHTML = '';
+                    if (rooms.length === 0) {
+                        roomSelect.innerHTML = '<option value="">No Rooms (User is Single)</option>';
+                        return;
+                    }
+                    rooms.forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r.id;
+                        opt.innerText = `${r.name} (ID: ${r.id}${r.is_main ? ' - Main' : ''})`;
+                        roomSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load rooms:", err);
+            }
+        }
+
+        async function sendHTTPProtobufRequest() {
+            const userId = document.getElementById('diagUserSelect').value;
+            const roomId = document.getElementById('diagRoomSelect').value;
+            const messageText = document.getElementById('diagMessageText').value;
+
+            if (!userId) {
+                alert("Please select a valid sender user.");
+                return;
+            }
+            if (!messageText.trim()) {
+                alert("Please enter message text.");
+                return;
+            }
+
+            const outputBox = document.getElementById('diag-http-output');
+            const reqHexSpan = document.getElementById('diag-http-req-hex');
+            const respJsonSpan = document.getElementById('diag-http-resp-json');
+            const statsDiv = document.getElementById('diag-http-stats');
+
+            outputBox.classList.remove('hidden');
+            reqHexSpan.innerText = "Encoding...";
+            respJsonSpan.innerText = "Sending pure Protobuf binary request...";
+            statsDiv.innerText = "";
+
+            const startTime = performance.now();
+
+            // 1. Encode payload to raw Protobuf binary in-browser
+            const payload = {
+                id: 0,
+                room_id: roomId ? parseInt(roomId) : 0,
+                sender_id: parseInt(userId),
+                message: messageText,
+                created_at: ""
+            };
+            const reqBytes = encodeProtobufJS(payload);
+            const reqHex = uint8ArrayToHex(reqBytes);
+            reqHexSpan.innerText = reqHex || '[Empty Payload]';
+
+            // 2. Fetch POST raw binary to Admin API simulating a client request
+            const token = localStorage.getItem('glimpse_admin_token');
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/x-protobuf',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({
+                        action: 'simulate_protobuf_post',
+                        user_id: userId,
+                        room_id: roomId ? parseInt(roomId) : null,
+                        message: messageText
+                    })
+                });
+
+                if (response.ok) {
+                    const respBytes = new Uint8Array(await response.arrayBuffer());
+                    const respHex = uint8ArrayToHex(respBytes);
+                    
+                    // Convert binary back to base64 to leverage our existing JS decoder
+                    let binaryString = '';
+                    for (let i = 0; i < respBytes.length; i++) {
+                        binaryString += String.fromCharCode(respBytes[i]);
+                    }
+                    const base64 = btoa(binaryString);
+                    const decoded = decodeProtobufJS(base64);
+
+                    const duration = (performance.now() - startTime).toFixed(2);
+
+                    respJsonSpan.innerText = JSON.stringify(decoded, null, 4) + `\n\nResponse Hex Bytes:\n${respHex}`;
+                    statsDiv.innerHTML = `Payload Size: <b>${reqBytes.length} bytes</b> | Response Size: <b>${respBytes.length} bytes</b> | Latency: <b>${duration} ms</b>`;
+                    
+                    // Clear inputs
+                    document.getElementById('diagMessageText').value = '';
+                    
+                    // Force refresh main UI data to show updated chat count!
+                    fetchData();
+                } else {
+                    respJsonSpan.innerText = "HTTP Error " + response.status;
+                }
+            } catch (err) {
+                console.error(err);
+                respJsonSpan.innerText = "Failed to transmit Protobuf binary: " + err.message;
+            }
+        }
+
+        function decodeSandbox(mode) {
+            const input = document.getElementById('sandboxInput').value.trim();
+            const output = document.getElementById('sandboxOutputWrapper');
+
+            if (!input) {
+                alert("Please enter base64 or hex characters to decode.");
+                return;
+            }
+
+            output.classList.remove('hidden');
+            output.innerText = "Decoding...";
+
+            try {
+                let base64 = '';
+                if (mode === 'hex') {
+                    // Convert hex characters (with or without spaces) to base64
+                    const hexClean = input.replace(/[^0-9A-Fa-f]/g, '');
+                    const bytes = new Uint8Array(hexClean.length / 2);
+                    for (let i = 0; i < bytes.length; i++) {
+                        bytes[i] = parseInt(hexClean.substr(i * 2, 2), 16);
+                    }
+                    let binStr = '';
+                    for (let i = 0; i < bytes.length; i++) {
+                        binStr += String.fromCharCode(bytes[i]);
+                    }
+                    base64 = btoa(binStr);
+                } else {
+                    base64 = input;
+                }
+
+                const decoded = decodeProtobufJS(base64);
+                if (decoded && Object.keys(decoded).length > 0) {
+                    output.innerText = "⚡️ SUCCESS: Pure Protobuf Decoded Fields:\n\n" + JSON.stringify(decoded, null, 4);
+                } else {
+                    output.innerText = "⚠️ WARNING: Decoded empty object. Ensure the payload matches the Glimpse v3 Protobuf field definitions.";
+                }
+            } catch (err) {
+                output.innerText = "❌ ERROR: Failed to parse input. Ensure formatting is correct.\n\nDetails: " + err.message;
+            }
+        }
+
+        // Trigger automatic rooms list fetch when user is populated
+        setTimeout(() => {
+            const select = document.getElementById('diagUserSelect');
+            if (select) {
+                updateDiagRooms();
+            }
+        }, 1500);
+        
         function drawSplineLine(canvas, ctx, points, maxVal, strokeColor, fillColor) {
             ctx.beginPath();
             const sliceWidth = canvas.width / (points.length - 1);

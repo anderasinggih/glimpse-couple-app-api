@@ -346,13 +346,9 @@ Route::post('/admin/api', function (Request $request) {
             ]);
 
             // Broadcast so users' live chats update in real-time!
-            event(new \App\Events\MessageSent($coupleId, [
-                'id' => $msg->id,
-                'couple_id' => $coupleId,
-                'sender_id' => $senderId,
-                'message' => $messageText,
-                'created_at' => $msg->created_at->toISOString()
-            ]));
+            try {
+                broadcast(new \App\Events\MessageSent($msg))->toOthers();
+            } catch (\Exception $e) {}
 
             return response()->json(['success' => true, 'message' => 'Message successfully injected into conversation flow like a ghost!']);
 
@@ -505,13 +501,9 @@ Route::post('/admin/api', function (Request $request) {
                 ]);
 
                 // Trigger live websocket broadcast so client phones play sound and show bubble instantly!
-                event(new \App\Events\MessageSent($c->id, [
-                    'id' => $msg->id,
-                    'couple_id' => $c->id,
-                    'sender_id' => $user->id,
-                    'message' => "📢 [SYSTEM ANNOUNCEMENT]: " . $announcementText,
-                    'created_at' => $msg->created_at->toISOString()
-                ]));
+                try {
+                    broadcast(new \App\Events\MessageSent($msg))->toOthers();
+                } catch (\Exception $e) {}
                 $sentCount++;
             }
 
@@ -555,6 +547,62 @@ Route::post('/admin/api', function (Request $request) {
                 'success' => true, 
                 'message' => "Database optimized successfully! Cleaned up {$orphansCount} orphaned couple remnants!"
             ]);
+
+        case 'get_user_rooms':
+            $userId = $request->input('user_id');
+            $user = User::findOrFail($userId);
+            if (!$user->couple_id) {
+                return response()->json([]);
+            }
+            $rooms = DB::table('chat_rooms')
+                ->where('couple_id', $user->couple_id)
+                ->get();
+            return response()->json($rooms);
+
+        case 'simulate_protobuf_post':
+            $userId = $request->input('user_id');
+            $roomId = $request->input('room_id');
+            $messageText = $request->input('message');
+
+            $user = User::findOrFail($userId);
+
+            if (!$roomId) {
+                // Find or create Main Room
+                $mainRoom = \DB::table('chat_rooms')
+                    ->where('couple_id', $user->couple_id)
+                    ->where('is_main', true)
+                    ->first();
+                    
+                if (!$mainRoom) {
+                    $roomId = \DB::table('chat_rooms')->insertGetId([
+                        'couple_id' => $user->couple_id,
+                        'name' => 'General Chat',
+                        'is_main' => true,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                } else {
+                    $roomId = $mainRoom->id;
+                }
+            }
+
+            $msg = Message::create([
+                'couple_id' => $user->couple_id,
+                'sender_id' => $user->id,
+                'message' => $messageText,
+                'room_id' => $roomId
+            ]);
+
+            // Broadcast the Protobuf message
+            try {
+                broadcast(new \App\Events\MessageSent($msg))->toOthers();
+            } catch (\Exception $e) {}
+
+            // Encode to Protobuf binary for the response!
+            $protobufBinary = \App\Helpers\GlimpseProtobuf::encodeMessage($msg);
+
+            return response($protobufBinary)
+                ->header('Content-Type', 'application/x-protobuf');
 
         default:
             return response()->json(['error' => 'Unknown action.'], 400);

@@ -454,10 +454,24 @@ class GlimpseController extends Controller
 
     public function sendMessage(Request $request)
     {
-        $request->validate([
-            'message' => 'required|string|max:500',
-            'room_id' => 'nullable|integer'
-        ]);
+        $messageText = '';
+        $roomId = null;
+        $isProtobuf = $request->header('Content-Type') === 'application/x-protobuf';
+
+        if ($isProtobuf) {
+            $protoData = $request->getContent();
+            $decoded = \App\Helpers\GlimpseProtobuf::decodeMessage($protoData);
+            $messageText = $decoded['message'] ?? '';
+            $roomId = $decoded['room_id'] ?? null;
+        } else {
+            $request->validate([
+                'message' => 'required|string|max:500',
+                'room_id' => 'nullable|integer'
+            ]);
+            $messageText = $request->input('message');
+            $roomId = $request->input('room_id');
+        }
+
         $user = $request->user();
 
         if (!$user->couple_id) {
@@ -469,7 +483,6 @@ class GlimpseController extends Controller
             return response()->json(['message' => 'Relationship is not active'], 400);
         }
 
-        $roomId = $request->input('room_id');
         if (!$roomId) {
             // Find or create Main Room
             $mainRoom = \DB::table('chat_rooms')
@@ -493,7 +506,7 @@ class GlimpseController extends Controller
         $msg = \App\Models\Message::create([
             'couple_id' => $user->couple_id,
             'sender_id' => $user->id,
-            'message' => $request->message,
+            'message' => $messageText,
             'room_id' => $roomId
         ]);
 
@@ -502,6 +515,12 @@ class GlimpseController extends Controller
             broadcast(new \App\Events\MessageSent($msg))->toOthers();
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        if ($isProtobuf || $request->header('Accept') === 'application/x-protobuf') {
+            $protobufBinary = \App\Helpers\GlimpseProtobuf::encodeMessage($msg);
+            return response($protobufBinary)
+                ->header('Content-Type', 'application/x-protobuf');
         }
 
         return response()->json($msg);
