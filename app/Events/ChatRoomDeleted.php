@@ -8,21 +8,17 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class LoveBurstSent implements ShouldBroadcast
+class ChatRoomDeleted implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $coupleId;
-    public $senderId;
-    public $timestamp;
-    public $reaction;
+    public $roomId;
 
-    public function __construct($coupleId, $senderId, $timestamp, $reaction = null)
+    public function __construct($coupleId, $roomId)
     {
         $this->coupleId = $coupleId;
-        $this->senderId = $senderId;
-        $this->timestamp = $timestamp;
-        $this->reaction = $reaction;
+        $this->roomId = $roomId;
     }
 
     public function broadcastOn(): array
@@ -35,9 +31,7 @@ class LoveBurstSent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'sender_id' => $this->senderId,
-            'timestamp' => $this->timestamp,
-            'reaction' => $this->reaction
+            'room_id' => $this->roomId
         ];
     }
 }
