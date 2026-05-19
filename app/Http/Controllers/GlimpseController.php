@@ -97,6 +97,7 @@ class GlimpseController extends Controller
                     'invite_code' => $user->invite_code,
                     'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
                     'born_date' => $user->born_date,
+                    'gender' => $user->gender,
                     'couple_id' => $user->couple_id !== null ? (int)$user->couple_id : null,
                     'latitude' => $user->latitude !== null ? (double)$user->latitude : null,
                     'longitude' => $user->longitude !== null ? (double)$user->longitude : null,
@@ -116,6 +117,7 @@ class GlimpseController extends Controller
                     'email' => $partner->email,
                     'profile_photo_url' => $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name),
                     'born_date' => $partner->born_date,
+                    'gender' => $partner->gender,
                     'couple_id' => $partner->couple_id !== null ? (int)$partner->couple_id : null,
                     'latitude' => $partner->latitude !== null ? (double)$partner->latitude : null,
                     'longitude' => $partner->longitude !== null ? (double)$partner->longitude : null,
@@ -153,12 +155,14 @@ class GlimpseController extends Controller
             'name' => 'sometimes|string|max:30',
             'email' => 'sometimes|email|max:100|unique:users,email,' . $user->id,
             'born_date' => 'sometimes|nullable|date',
+            'gender' => 'sometimes|nullable|string|in:male,female',
             'profile_photo' => 'sometimes|image|max:5120'
         ]);
 
         if ($request->has('name')) $user->name = $request->name;
         if ($request->has('email')) $user->email = $request->email;
         if ($request->has('born_date')) $user->born_date = $request->born_date;
+        if ($request->has('gender')) $user->gender = $request->gender;
         
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo_url && !str_contains($user->profile_photo_url, 'ui-avatars')) {
@@ -183,6 +187,7 @@ class GlimpseController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'born_date' => $user->born_date,
+                'gender' => $user->gender,
                 'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
             ]
         ]);
