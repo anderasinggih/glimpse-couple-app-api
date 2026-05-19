@@ -72,23 +72,11 @@ class GlimpseController extends Controller
             $isTogether = false;
 
             if ($couple) {
-                $today = now()->toDateString();
-                $yesterday = now()->subDay()->toDateString();
-
-                // Reset streak if last meeting was before yesterday and not today
-                if ($couple->last_meeting_date && $couple->last_meeting_date !== $today && $couple->last_meeting_date !== $yesterday) {
-                    $couple->together_streak = 0;
-                    $couple->save();
-                }
-
                 $togetherStreak = $couple->together_streak;
                 $totalMeetings = $couple->total_meetings;
 
                 if ($partner) {
-                    $isTogether = $this->checkAndRecordMeeting($user, $partner);
-                    $couple->refresh();
-                    $togetherStreak = $couple->together_streak;
-                    $totalMeetings = $couple->total_meetings;
+                    $isTogether = $this->areCoordinatesTogether($user, $partner);
                 }
             }
 
@@ -807,6 +795,28 @@ class GlimpseController extends Controller
             $user->save();
             \Cache::put("user_{$user->id}_last_db_write", $currentTime, 3600);
             $this->clearGlimpseCache($user->id);
+
+            // Run side-effects like meeting checks and streak resets when database saving is active
+            if ($user->couple_id) {
+                $couple = \App\Models\Couple::find($user->couple_id);
+                if ($couple) {
+                    $today = now()->toDateString();
+                    $yesterday = now()->subDay()->toDateString();
+                    
+                    // Reset streak if last meeting was before yesterday and not today
+                    if ($couple->last_meeting_date && $couple->last_meeting_date !== $today && $couple->last_meeting_date !== $yesterday) {
+                        $couple->together_streak = 0;
+                        $couple->save();
+                    }
+                    
+                    $partner = \App\Models\User::where('couple_id', $user->couple_id)
+                        ->where('id', '!=', $user->id)
+                        ->first();
+                    if ($partner) {
+                        $this->checkAndRecordMeeting($user, $partner);
+                    }
+                }
+            }
         } else {
             // If throttling DB, we still save the coordinate in Cache to prevent stale reads
             \Cache::put("user_{$user->id}_temp_coordinate", [
@@ -831,6 +841,29 @@ class GlimpseController extends Controller
             'message' => 'Status updated successfully!',
             'user' => $user
         ]);
+    }
+
+    private function areCoordinatesTogether($user, $partner)
+    {
+        if (!$user || !$partner) return false;
+        if (!$user->latitude || !$user->longitude || !$partner->latitude || !$partner->longitude) return false;
+
+        $lat1 = (double)$user->latitude;
+        $lon1 = (double)$user->longitude;
+        $lat2 = (double)$partner->latitude;
+        $lon2 = (double)$partner->longitude;
+
+        $earthRadius = 6371000; // meters
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lon1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lon2);
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) + cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+        $distance = $angle * $earthRadius;
+
+        return ($distance <= 100);
     }
 
     private function checkAndRecordMeeting($user, $partner)
@@ -895,7 +928,7 @@ class GlimpseController extends Controller
 
         $history = $user->location_history ?? [];
         
-        // Prevent duplicate consecutive updates
+        // Prevent duplicate consecutive updates (within ~1.1 meters)
         if (!empty($history)) {
             $last = end($history);
             if (abs($last['latitude'] - $lat) < 0.00001 && abs($last['longitude'] - $lng) < 0.00001) {
@@ -903,22 +936,66 @@ class GlimpseController extends Controller
             }
         }
 
+        $now = now()->timestamp;
         $history[] = [
             'latitude' => (double)$lat,
             'longitude' => (double)$lng,
-            'timestamp' => now()->timestamp
+            'timestamp' => $now
         ];
 
-        // ⏱️ Zenly Trail Decay: Auto-delete coordinates older than 3 hours (10,800 seconds)
-        $threeHoursAgo = now()->timestamp - 10800;
-        $history = array_filter($history, function($entry) use ($threeHoursAgo) {
-            return isset($entry['timestamp']) && $entry['timestamp'] >= $threeHoursAgo;
+        // ⏱️ Zenly Trail Decay: Auto-delete coordinates older than 24 hours (86,400 seconds)
+        $twentyFourHoursAgo = $now - 86400;
+        $history = array_filter($history, function($entry) use ($twentyFourHoursAgo) {
+            return isset($entry['timestamp']) && $entry['timestamp'] >= $twentyFourHoursAgo;
         });
         $history = array_values($history);
 
-        // Keep last 30 coordinates for the footprints trail
-        if (count($history) > 30) {
-            array_shift($history);
+        // Intelligent Path Simplification (Downsampling)
+        // Keep the last 15 minutes (900 seconds) in high resolution.
+        // For entries older than 15 minutes, downsample to at most one point every 60 seconds
+        // OR points that are at least 15 meters apart, to keep the footprints trail clean and light.
+        $fifteenMinutesAgo = $now - 900;
+        
+        $highResPart = [];
+        $lowResPart = [];
+        
+        foreach ($history as $entry) {
+            if ($entry['timestamp'] >= $fifteenMinutesAgo) {
+                $highResPart[] = $entry;
+            } else {
+                $lowResPart[] = $entry;
+            }
+        }
+        
+        $simplifiedLowRes = [];
+        $lastSavedLowRes = null;
+        
+        foreach ($lowResPart as $entry) {
+            if ($lastSavedLowRes === null) {
+                $simplifiedLowRes[] = $entry;
+                $lastSavedLowRes = $entry;
+                continue;
+            }
+            
+            $timeDiff = $entry['timestamp'] - $lastSavedLowRes['timestamp'];
+            
+            // Calculate approximate distance in meters
+            $latDiff = abs($entry['latitude'] - $lastSavedLowRes['latitude']);
+            $lngDiff = abs($entry['longitude'] - $lastSavedLowRes['longitude']);
+            $approxDistance = sqrt(pow($latDiff * 111000, 2) + pow($lngDiff * 111000, 2));
+            
+            if ($timeDiff >= 60 && $approxDistance >= 15) {
+                $simplifiedLowRes[] = $entry;
+                $lastSavedLowRes = $entry;
+            }
+        }
+        
+        $history = array_merge($simplifiedLowRes, $highResPart);
+        
+        // Keep a hard limit on total coordinates in memory/DB (e.g. 150 coordinates max)
+        // 150 coordinates is very light (~9KB per user) but more than enough for a 24-hour trail
+        if (count($history) > 150) {
+            $history = array_slice($history, -150);
         }
 
         $user->location_history = $history;
@@ -927,9 +1004,9 @@ class GlimpseController extends Controller
     private function getFilteredHistory($history)
     {
         if (empty($history)) return [];
-        $threeHoursAgo = now()->timestamp - 10800;
-        $filtered = array_filter($history, function($entry) use ($threeHoursAgo) {
-            return isset($entry['timestamp']) && $entry['timestamp'] >= $threeHoursAgo;
+        $twentyFourHoursAgo = now()->timestamp - 86400;
+        $filtered = array_filter($history, function($entry) use ($twentyFourHoursAgo) {
+            return isset($entry['timestamp']) && $entry['timestamp'] >= $twentyFourHoursAgo;
         });
         return array_values($filtered);
     }
