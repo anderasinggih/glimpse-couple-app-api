@@ -293,6 +293,12 @@ class GlimpseProtobuf
             $data .= $wifiStr;
         }
         
+        // Field 9: last_seen_message_id (Varint)
+        if ($user->last_seen_message_id !== null) {
+            $data .= self::writeTag(9, 0);
+            $data .= self::writeVarint((int)$user->last_seen_message_id);
+        }
+        
         return $data;
     }
 
