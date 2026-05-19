@@ -25,6 +25,24 @@ class GlimpseController extends Controller
                 $couple = \App\Models\Couple::find($user->couple_id);
             }
 
+            // Apply temp coordinates from cache if available to prevent database lag reads
+            if ($tempUserCoord = \Cache::get("user_{$user->id}_temp_coordinate")) {
+                if (isset($tempUserCoord['latitude'])) $user->latitude = $tempUserCoord['latitude'];
+                if (isset($tempUserCoord['longitude'])) $user->longitude = $tempUserCoord['longitude'];
+                if (isset($tempUserCoord['location_name'])) $user->location_name = $tempUserCoord['location_name'];
+                if (isset($tempUserCoord['battery_level'])) $user->battery_level = $tempUserCoord['battery_level'];
+                if (isset($tempUserCoord['is_charging'])) $user->is_charging = $tempUserCoord['is_charging'];
+                if (isset($tempUserCoord['status_note'])) $user->status_note = $tempUserCoord['status_note'];
+            }
+            if ($partner && ($tempPartnerCoord = \Cache::get("user_{$partner->id}_temp_coordinate"))) {
+                if (isset($tempPartnerCoord['latitude'])) $partner->latitude = $tempPartnerCoord['latitude'];
+                if (isset($tempPartnerCoord['longitude'])) $partner->longitude = $tempPartnerCoord['longitude'];
+                if (isset($tempPartnerCoord['location_name'])) $partner->location_name = $tempPartnerCoord['location_name'];
+                if (isset($tempPartnerCoord['battery_level'])) $partner->battery_level = $tempPartnerCoord['battery_level'];
+                if (isset($tempPartnerCoord['is_charging'])) $partner->is_charging = $tempPartnerCoord['is_charging'];
+                if (isset($tempPartnerCoord['status_note'])) $partner->status_note = $tempPartnerCoord['status_note'];
+            }
+
             $photoUrl = $user->profile_photo_url;
             if ($photoUrl && !str_starts_with($photoUrl, 'http')) {
                 $photoUrl = url($photoUrl);
@@ -780,10 +798,29 @@ class GlimpseController extends Controller
             $this->appendLocationHistory($user, $data['latitude'], $data['longitude']);
         }
 
-        $user->save();
-        $this->clearGlimpseCache($user->id);
+        // --- Database Write Throttling (Zenly Speed Optimization) ---
+        $lastDbWrite = (int)\Cache::get("user_{$user->id}_last_db_write", 0);
+        $currentTime = time();
+        $shouldSaveToDb = ($currentTime - $lastDbWrite) >= 10; // Save to DB at most once every 10 seconds
 
-        // Broadcast live state updates to the partner instantly over WebSockets
+        if ($shouldSaveToDb) {
+            $user->save();
+            \Cache::put("user_{$user->id}_last_db_write", $currentTime, 3600);
+            $this->clearGlimpseCache($user->id);
+        } else {
+            // If throttling DB, we still save the coordinate in Cache to prevent stale reads
+            \Cache::put("user_{$user->id}_temp_coordinate", [
+                'latitude' => $user->latitude,
+                'longitude' => $user->longitude,
+                'location_name' => $user->location_name,
+                'battery_level' => $user->battery_level,
+                'is_charging' => $user->is_charging,
+                'status_note' => $user->status_note,
+                'updated_at' => now()->toIso8601String()
+            ], 60);
+        }
+
+        // Broadcast live state updates to the partner instantly over WebSockets (ALWAYS broadcast!)
         try {
             broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
         } catch (\Exception $e) {
