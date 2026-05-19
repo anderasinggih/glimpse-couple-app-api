@@ -81,12 +81,32 @@ class GlimpseController extends Controller
             }
 
             $activeSchedule = null;
+            $pendingInvitation = null;
             if ($user->couple_id) {
+                // Get the closest accepted upcoming schedule
                 $activeSchedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
                     ->where('scheduled_at', '>=', now())
-                    ->whereIn('status', ['pending', 'accepted'])
+                    ->where('status', 'accepted')
                     ->orderBy('scheduled_at', 'asc')
                     ->first();
+                
+                // Get the closest pending invitation from the partner
+                $pendingInvitation = \App\Models\Schedule::where('couple_id', $user->couple_id)
+                    ->where('scheduled_at', '>=', now())
+                    ->where('status', 'pending')
+                    ->where('creator_id', '!=', $user->id)
+                    ->orderBy('scheduled_at', 'asc')
+                    ->first();
+
+                // Fallback: if no accepted schedule, show pending schedule created by the user
+                if (!$activeSchedule) {
+                    $activeSchedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
+                        ->where('scheduled_at', '>=', now())
+                        ->where('status', 'pending')
+                        ->where('creator_id', $user->id)
+                        ->orderBy('scheduled_at', 'asc')
+                        ->first();
+                }
             }
 
             return [
@@ -142,6 +162,7 @@ class GlimpseController extends Controller
                 'total_meetings' => (int)$totalMeetings,
                 'love_burst_timestamp' => $loveBurstTimestamp,
                 'active_schedule' => $this->formatSchedule($activeSchedule),
+                'pending_invitation' => $this->formatSchedule($pendingInvitation),
             ];
         });
 
