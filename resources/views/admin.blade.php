@@ -560,6 +560,13 @@
                                 <span class="block font-bold text-emerald-400 text-sm">Glimpse Route Path Simulator</span>
                                 <span class="block text-xs text-white/50">Simulates user driving, walking, or riding, updating coords continuously every 1-2 seconds.</span>
                                 
+                                <div class="mt-2">
+                                    <label class="block text-[10px] text-white/45 mb-1">Target User</label>
+                                    <select id="simTargetUserSelect" class="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-slate-900 text-white text-xs focus:outline-none">
+                                        <!-- Dynamic populated options -->
+                                    </select>
+                                </div>
+                                
                                 <div class="grid grid-cols-2 gap-2 mt-2">
                                     <div>
                                         <label class="block text-[10px] text-white/45 mb-1">Velocity Speed</label>
@@ -1166,6 +1173,7 @@
         function populateSelects(data) {
             const selects = [
                 'simulatorUserSelect', 
+                'simTargetUserSelect',
                 'clearChatCoupleSelect', 
                 'dewaPruneUserSelect', 
                 'dewaLinkUser1Select', 
@@ -1499,9 +1507,9 @@
         let baseLon = 106.8456;
 
         function toggleDriverSimulation() {
-            const userId = document.getElementById('simulatorUserSelect').value;
+            const userId = document.getElementById('simTargetUserSelect').value;
             if (!userId) {
-                alert("Please select a user first!");
+                alert("Please select a target user in the Route Path Simulator first!");
                 return;
             }
 
