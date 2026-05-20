@@ -1073,6 +1073,34 @@ class GlimpseController extends Controller
         return response()->json($formatted);
     }
 
+    public function deleteSchedule(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'Not in a couple relationship'], 400);
+        }
+
+        $schedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$schedule) {
+            return response()->json(['message' => 'Schedule not found'], 404);
+        }
+
+        if ($schedule->creator_id !== $user->id) {
+            return response()->json(['message' => 'Only the creator can delete this invitation'], 403);
+        }
+
+        $schedule->delete();
+
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {}
+
+        return response()->json(['message' => 'Schedule successfully deleted']);
+    }
+
     private function formatSchedule($schedule)
     {
         if (!$schedule) {
