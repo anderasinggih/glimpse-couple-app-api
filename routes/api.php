@@ -41,4 +41,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/glimpse/chat-rooms/{id}/request-delete', [GlimpseController::class, 'requestDeleteChatRoom']);
     Route::post('/glimpse/chat-rooms/{id}/decline-delete', [GlimpseController::class, 'declineDeleteChatRoom']);
     Route::post('/glimpse/chat-rooms/{id}/confirm-delete', [GlimpseController::class, 'confirmDeleteChatRoom']);
+    Route::post('/glimpse/chat-rooms/{id}/clear', [GlimpseController::class, 'clearChatRoom']);
 });

@@ -1407,6 +1407,37 @@ class GlimpseController extends Controller
         \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
     }
 
+    public function clearChatRoom(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $room = \DB::table('chat_rooms')
+            ->where('id', $id)
+            ->where('couple_id', $user->couple_id)
+            ->first();
+
+        if (!$room) {
+            return response()->json(['message' => 'Room not found'], 404);
+        }
+
+        // Delete all messages in this room
+        \App\Models\Message::where('room_id', $id)
+            ->where('couple_id', $user->couple_id)
+            ->delete();
+
+        // Also delete messages with null room_id if it's the main room just in case
+        if ($room->is_main) {
+            \App\Models\Message::whereNull('room_id')
+                ->where('couple_id', $user->couple_id)
+                ->delete();
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
     public function requestDeleteChatRoom(Request $request, $id)
     {
         $user = $request->user();
