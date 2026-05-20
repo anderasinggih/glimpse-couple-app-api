@@ -412,9 +412,10 @@ Route::post('/admin/api', function (Request $request) {
             $deletePhysicalFile = function($url) {
                 if (!$url) return;
                 $relativePath = parse_url($url, PHP_URL_PATH);
-                if (strpos($relativePath, '/storage/') === 0) {
+                if (str_starts_with($relativePath, '/storage/')) {
                     $relativePath = substr($relativePath, 9);
                 }
+                $relativePath = ltrim($relativePath, '/');
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
             };
 
@@ -469,9 +470,10 @@ Route::post('/admin/api', function (Request $request) {
             $deletePhysicalFile = function($url) {
                 if (!$url) return;
                 $relativePath = parse_url($url, PHP_URL_PATH);
-                if (strpos($relativePath, '/storage/') === 0) {
+                if (str_starts_with($relativePath, '/storage/')) {
                     $relativePath = substr($relativePath, 9);
                 }
+                $relativePath = ltrim($relativePath, '/');
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
             };
 
