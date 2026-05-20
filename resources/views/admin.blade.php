@@ -588,20 +588,20 @@
                     </div>
                 </div>
 
-                <!-- ================= DEWA (GOD MODE) CONTROL PANEL ================= -->
+                <!-- ================= SYSTEM MANAGEMENT CONTROL PANEL ================= -->
                 <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-6">
                     <div class="flex items-center justify-between border-b border-white/10 pb-4">
                         <h4 class="text-xl font-bold flex items-center space-x-2 text-activeCyan">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="w-6 h-6 text-activeCyan animate-pulse" viewBox="0 0 24 24">
                                 <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
                             </svg>
-                            <span>Dewa God Mode Command Center</span>
+                            <span>System Management Command Center</span>
                         </h4>
-                        <span class="text-[10px] uppercase font-bold tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded">God Level Access</span>
+                        <span class="text-[10px] uppercase font-bold tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded">System Administrator Level</span>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- God Command 1: Glimpse Flash Exterminator -->
+                        <!-- System Command 1: Glimpse Flash Exterminator -->
                         <div class="p-4 bg-slate-950/40 border border-white/5 rounded-xl space-y-4">
                             <div>
                                 <span class="block font-bold text-white text-sm">Glimpse Flash Exterminator</span>
@@ -632,7 +632,7 @@
                             </div>
                         </div>
 
-                        <!-- God Command 2: Forced Couple Linker -->
+                        <!-- System Command 2: Forced Couple Linker -->
                         <div class="p-4 bg-slate-950/40 border border-white/5 rounded-xl space-y-4">
                             <div>
                                 <span class="block font-bold text-white text-sm">Forced Couple Linker</span>
@@ -654,13 +654,13 @@
                                         </select>
                                     </div>
                                 </div>
-                                <button onclick="executeGodLink()" class="w-full py-2 rounded-lg bg-activeCyan/10 hover:bg-activeCyan text-activeCyan hover:text-slate-950 border border-activeCyan/30 font-bold text-xs transition-all flex items-center justify-center space-x-2">
-                                    <span>Establish God-Link Connection</span>
+                                <button onclick="executeForcedLink()" class="w-full py-2 rounded-lg bg-activeCyan/10 hover:bg-activeCyan text-activeCyan hover:text-slate-950 border border-activeCyan/30 font-bold text-xs transition-all flex items-center justify-center space-x-2">
+                                    <span>Establish Direct Connection</span>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- God Command 3: Global System Live Broadcast -->
+                        <!-- System Command 3: Global System Live Broadcast -->
                         <div class="p-4 bg-slate-950/40 border border-white/5 rounded-xl space-y-4">
                             <div>
                                 <span class="block font-bold text-white text-sm">Global System Broadcast</span>
@@ -678,7 +678,7 @@
                             </div>
                         </div>
 
-                        <!-- God Command 4: System Optimizer & Orphan Sweeper -->
+                        <!-- System Command 4: System Optimizer & Orphan Sweeper -->
                         <div class="p-4 bg-slate-950/40 border border-white/5 rounded-xl space-y-4 flex flex-col justify-between">
                             <div>
                                 <span class="block font-bold text-white text-sm">System Engine Optimizer</span>
@@ -695,7 +695,7 @@
                             </div>
                         </div>
 
-                        <!-- God Command 5: Secure Token Changer -->
+                        <!-- System Command 5: Secure Token Changer -->
                         <div class="p-4 bg-slate-950/40 border border-white/5 rounded-xl space-y-4 flex flex-col justify-between">
                             <div>
                                 <span class="block font-bold text-white text-sm">Secure Admin Token Changer</span>
@@ -858,7 +858,7 @@
 
                                 <div>
                                     <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Location Name</label>
-                                    <input type="text" id="flashLocName" value="Dewa Diagnostic Lab" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                    <input type="text" id="flashLocName" value="System Diagnostic Lab" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
                                 </div>
 
                                 <div>
@@ -1010,7 +1010,7 @@
         </div>
     </div>
 
-    <!-- ================= DEWA CHAT SPYGLASS MODAL ================= -->
+    <!-- ================= SYSTEM CHAT MONITOR MODAL ================= -->
     <div id="chatSpyModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
         <div class="w-full max-w-lg p-6 rounded-2xl border border-white/10 bg-slate-900 shadow-2xl space-y-4 flex flex-col h-[80vh]">
             <!-- Header -->
@@ -1021,8 +1021,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     <div>
-                        <h4 class="text-lg font-bold text-white" id="spyModalTitle">Live Chat Spyglass</h4>
-                        <span class="text-[10px] uppercase font-bold text-activeCyan tracking-wider">God Spy Mode</span>
+                        <h4 class="text-lg font-bold text-white" id="spyModalTitle">Live Chat Monitor</h4>
+                        <span class="text-[10px] uppercase font-bold text-activeCyan tracking-wider">System Monitor Mode</span>
                     </div>
                 </div>
                 <button onclick="closeChatSpy()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all">
@@ -1982,7 +1982,7 @@
             }
         }
 
-        // --- DEWA (GOD MODE) UTILITIES ---
+        // --- SYSTEM MANAGEMENT UTILITIES ---
         async function dewaApiCall(action, payload) {
             const token = localStorage.getItem('glimpse_admin_token');
             try {
@@ -1998,34 +1998,34 @@
 
                 const data = await response.json();
                 if (response.ok) {
-                    alert(`Dewa Success: ${data.message}`);
+                    alert(`Success: ${data.message}`);
                     fetchData(); // Sync dashboard
                 } else {
-                    alert(`Dewa Error: ${data.error || 'Request failed'}`);
+                    alert(`Error: ${data.error || 'Request failed'}`);
                 }
             } catch (err) {
                 console.error(err);
-                alert(`Network failure during Dewa command execution.`);
+                alert(`Network failure during command execution.`);
             }
         }
 
         function executeFlashPrune() {
             const userId = document.getElementById('dewaPruneUserSelect').value;
             const daysAgo = document.getElementById('dewaPruneDaysSelect').value;
-            const confirmation = confirm(`DEWA COMMAND WARNING\n\nAre you sure you want to exterminate Glimpse Flash records for this selection? This will physically and permanently erase flash files from the server's disk!`);
+            const confirmation = confirm(`SYSTEM COMMAND WARNING\n\nAre you sure you want to exterminate Glimpse Flash records for this selection? This will physically and permanently erase flash files from the server's disk!`);
             if (confirmation) {
                 dewaApiCall('delete_flashes', { user_id: userId, days_ago: daysAgo });
             }
         }
 
-        function executeGodLink() {
+        function executeForcedLink() {
             const user1 = document.getElementById('dewaLinkUser1Select').value;
             const user2 = document.getElementById('dewaLinkUser2Select').value;
             if (user1 === user2) {
                 alert("Cannot establish link between the same user!");
                 return;
             }
-            const confirmation = confirm(`Establish direct God-Link between User ID ${user1} and User ID ${user2} instantly?`);
+            const confirmation = confirm(`Establish direct connection between User ID ${user1} and User ID ${user2} instantly?`);
             if (confirmation) {
                 dewaApiCall('forced_couple_link', { user_1_id: user1, user_2_id: user2 });
             }
@@ -2057,7 +2057,7 @@
                 alert("Please enter a new access token!");
                 return;
             }
-            const confirmation = confirm(`DEWA COMMAND: Change Master Admin Token?\n\nYou will be logged out and must log in again with the new token.`);
+            const confirmation = confirm(`SYSTEM COMMAND: Change Master Admin Token?\n\nYou will be logged out and must log in again with the new token.`);
             if (confirmation) {
                 const token = localStorage.getItem('glimpse_admin_token');
                 try {
@@ -2073,19 +2073,19 @@
 
                     const data = await response.json();
                     if (response.ok) {
-                        alert(`Dewa Success: ${data.message}`);
+                        alert(`Success: ${data.message}`);
                         handleLogout(); // Automatically log out
                     } else {
-                        alert(`Dewa Error: ${data.error || 'Request failed'}`);
+                        alert(`Error: ${data.error || 'Request failed'}`);
                     }
                 } catch (err) {
                     console.error(err);
-                    alert(`Network failure during Dewa command execution.`);
+                    alert(`Network failure during command execution.`);
                 }
             }
         }
 
-        // --- DEWA SPYGLASS HANDLERS ---
+        // --- SYSTEM CHAT MONITOR HANDLERS ---
         let activeSpyCoupleId = null;
         let activeSpyUsers = [];
         let activeSpyRooms = [];
