@@ -100,7 +100,7 @@
                 <!-- Left Content -->
                 <div class="lg:col-span-7 space-y-6 text-left relative z-10">
                     <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-electricPurple/10 border border-electricPurple/20 text-electricPurple text-xs font-semibold uppercase tracking-wider">
-                        <span>Native SwiftUI · Local SQLite3 · Zenly-Style Slide · WebSocket Lock</span>
+                        <span>Native SwiftUI · Local SQLite3 · Smooth Interpolation · WebSocket Lock</span>
                     </div>
                     
                     <h2 class="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1] mb-4">
@@ -108,7 +108,7 @@
                     </h2>
                     
                     <p class="text-white/60 text-lg sm:text-xl font-light max-w-2xl leading-relaxed">
-                        Glimpse is a zero-latency, private companion app designed for couples. Experience gapless Zenly-style real-time location mapping, high-performance local SQLite3 message caching, and instant self-destructing flash attachments.
+                        Glimpse is a zero-latency, private companion app designed for couples. Experience gapless real-time location mapping, high-performance local SQLite3 message caching, and instant self-destructing flash attachments.
                     </p>
 
                     <div class="flex flex-wrap gap-4 pt-4">
@@ -129,9 +129,9 @@
 
                 <!-- Right Visual Mockup -->
                 <div class="lg:col-span-5 relative flex justify-center">
-                    <div class="w-80 h-[500px] rounded-[48px] border-4 border-white/20 bg-slate-900 shadow-2xl relative p-4 flex flex-col justify-between overflow-hidden">
+                    <div class="w-80 h-[660px] rounded-[48px] border-4 border-white/20 bg-slate-900 shadow-2xl relative p-4 flex flex-col justify-between overflow-hidden">
                         <!-- Camera notch -->
-                        <div class="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full z-20"></div>
+                        <div class="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-full z-20"></div>
                         
                         <!-- Internal Screen Content -->
                         <div class="flex-grow flex flex-col justify-between pt-8 pb-4 relative z-10 space-y-4">
@@ -158,7 +158,7 @@
                             <div class="aspect-square w-full rounded-[32px] bg-white/5 border border-white/10 backdrop-blur-2xl relative overflow-hidden flex flex-col justify-between p-4 group">
                                 <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/80"></div>
                                 <div class="flex justify-between items-center z-10">
-                                    <span class="px-2 py-0.5 rounded bg-electricPurple/20 border border-electricPurple/30 text-[9px] font-bold text-electricPurple">Zenly Glide</span>
+                                    <span class="px-2 py-0.5 rounded bg-electricPurple/20 border border-electricPurple/30 text-[9px] font-bold text-electricPurple">Smooth Glide</span>
                                     <span class="text-[9px] text-white/50">Active Slide</span>
                                 </div>
                                 
@@ -214,7 +214,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8m-3-4h.008v.008H12V11.25zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <h4 class="text-lg font-bold text-white mb-2">Zenly-Style Slide</h4>
+                        <h4 class="text-lg font-bold text-white mb-2">Smooth Interpolation</h4>
                         <p class="text-white/50 text-xs leading-relaxed">Smooth, gapless coordinate interpolation and dead-reckoning extrapolation for signal drops. Pure 60fps sliding without sudden jumps.</p>
                     </div>
 

@@ -551,12 +551,12 @@
                             <span class="w-1.5 h-6 rounded bg-emerald-500"></span>
                             <span>Dynamic Movement & Concurrency Burst Simulator</span>
                         </h4>
-                        <p class="text-sm text-white/60">Simulate high-frequency coordinate movement routes (Zenly Slide test) and multi-packet chat bursts.</p>
+                        <p class="text-sm text-white/60">Simulate high-frequency coordinate movement routes (Glimpse Slide test) and multi-packet chat bursts.</p>
                         
                         <div class="space-y-3 pt-2">
                             <!-- Movement Route Simulation -->
                             <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
-                                <span class="block font-bold text-emerald-400 text-sm">Zenly 60s Route Path Simulator</span>
+                                <span class="block font-bold text-emerald-400 text-sm">Glimpse 60s Route Path Simulator</span>
                                 <span class="block text-xs text-white/50">Simulates user driving, walking, or riding, updating coords continuously every 1-2 seconds.</span>
                                 
                                 <div class="grid grid-cols-2 gap-2 mt-2">
@@ -1075,6 +1075,11 @@
                 fetchData();
                 startWebSocketDiagnostics();
                 startBandwidthMonitor();
+                
+                const activeTab = localStorage.getItem('glimpse_active_tab');
+                if (activeTab) {
+                    switchTab(activeTab);
+                }
             } else {
                 localStorage.removeItem('glimpse_admin_token');
                 window.location.href = '/admin/login';
@@ -1311,6 +1316,7 @@
 
         // TABS NAVIGATION
         function switchTab(tabId) {
+            localStorage.setItem('glimpse_active_tab', tabId);
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             
             document.querySelectorAll('.tab-btn').forEach(b => {
