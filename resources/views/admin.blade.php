@@ -966,6 +966,54 @@
                             </div>
                         </div>
 
+                        <!-- Box 3: Laravel Octane Monitor & Controller -->
+                        <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4">
+                            <h4 class="text-lg font-bold flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="w-1.5 h-6 rounded bg-emerald-500 inline-block"></span>
+                                    <span>Laravel Octane Monitor</span>
+                                </div>
+                                <span id="octaneBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">CHECKING...</span>
+                            </h4>
+                            <p class="text-xs text-white/50">Monitor worker state, check Octane server connectivity, and reload code changes instantly without server downtime.</p>
+                            
+                            <div class="space-y-3 pt-2 text-xs">
+                                <div class="grid grid-cols-2 gap-2 text-[9px] font-mono">
+                                    <div class="p-2 rounded bg-slate-900 border border-white/5 flex flex-col">
+                                        <span class="text-white/40">Latency / Response:</span>
+                                        <span id="octaneLatency" class="font-bold text-white">-- ms</span>
+                                    </div>
+                                    <div class="p-2 rounded bg-slate-900 border border-white/5 flex flex-col">
+                                        <span class="text-white/40">PHP Version:</span>
+                                        <span id="octanePhpVersion" class="font-bold text-white">--</span>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <button onclick="checkOctaneStatus()" class="py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold border border-white/10 transition-all flex items-center justify-center space-x-1 text-xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                        </svg>
+                                        <span>Refresh Status</span>
+                                    </button>
+                                    <button onclick="reloadOctaneWorkers()" class="py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 font-bold transition-all flex items-center justify-center space-x-1 text-xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.656 48.656 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
+                                        </svg>
+                                        <span>Artisan Reload</span>
+                                    </button>
+                                </div>
+
+                                <!-- Console output -->
+                                <div id="octaneConsole" class="hidden p-3 rounded-xl bg-slate-950/70 border border-white/5 text-[9px] font-mono space-y-2">
+                                    <div>
+                                        <span class="text-emerald-400 block font-bold uppercase text-[8px]">Octane Command Output</span>
+                                        <span id="octaneConsoleOutput" class="text-white break-all block whitespace-pre-wrap"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
                 </div>
@@ -1132,8 +1180,10 @@
                 if (response.ok) {
                     const data = await response.json();
                     updateUI(data);
-                    // Defer to prevent blocking UI load
-                    setTimeout(diagnoseStorageSymlink, 100);
+                    setTimeout(() => {
+                        diagnoseStorageSymlink();
+                        checkOctaneStatus();
+                    }, 100);
                 } else if (response.status === 401) {
                     handleLogout();
                 }
@@ -3007,6 +3057,105 @@
             ctx.closePath();
             ctx.fillStyle = fillColor;
             ctx.fill();
+        }
+
+        async function checkOctaneStatus() {
+            const token = localStorage.getItem('glimpse_admin_token');
+            const badge = document.getElementById('octaneBadge');
+            const latencySpan = document.getElementById('octaneLatency');
+            const phpSpan = document.getElementById('octanePhpVersion');
+            const consoleDiv = document.getElementById('octaneConsole');
+            const consoleOutput = document.getElementById('octaneConsoleOutput');
+
+            if (!badge) return;
+
+            badge.innerText = "CHECKING...";
+            badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20";
+
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: 'octane_status' })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.is_running) {
+                        badge.innerText = "RUNNING";
+                        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                    } else {
+                        badge.innerText = "STOPPED";
+                        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
+                    }
+
+                    latencySpan.innerText = result.latency_ms + " ms";
+                    phpSpan.innerText = result.php_version;
+                    
+                    if (result.artisan_output) {
+                        consoleDiv.classList.remove('hidden');
+                        consoleOutput.innerText = result.artisan_output;
+                    } else {
+                        consoleDiv.classList.add('hidden');
+                    }
+                } else {
+                    badge.innerText = "OFFLINE";
+                    badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
+                }
+            } catch (err) {
+                badge.innerText = "ERROR";
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
+                console.error("Octane status check failed:", err);
+            }
+        }
+
+        async function reloadOctaneWorkers() {
+            const token = localStorage.getItem('glimpse_admin_token');
+            const badge = document.getElementById('octaneBadge');
+            const consoleDiv = document.getElementById('octaneConsole');
+            const consoleOutput = document.getElementById('octaneConsoleOutput');
+
+            if (!confirm("Are you sure you want to reload Laravel Octane worker processes?\n\nThis is a zero-downtime hot-reload to apply any new PHP code updates immediately.")) {
+                return;
+            }
+
+            if (badge) {
+                badge.innerText = "RELOADING...";
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20";
+            }
+
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: 'octane_reload' })
+                });
+
+                const result = await response.json();
+                if (consoleDiv) consoleDiv.classList.remove('hidden');
+
+                if (response.ok && result.success) {
+                    if (consoleOutput) consoleOutput.innerText = result.artisan_output || "Octane workers successfully reloaded.";
+                    alert(result.message);
+                    checkOctaneStatus();
+                } else {
+                    if (consoleOutput) consoleOutput.innerText = "Error:\n" + (result.error || result.message);
+                    alert("Octane reload failed: " + (result.message || 'Server error'));
+                    checkOctaneStatus();
+                }
+            } catch (err) {
+                alert("Exception: " + err.message);
+                checkOctaneStatus();
+            }
         }
     </script>
 </body>

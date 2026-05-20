@@ -809,6 +809,51 @@ Route::post('/admin/api', function (Request $request) {
                 ], 500);
             }
 
+        case 'octane_status':
+            $isRunning = false;
+            $latency = 0;
+            $startTime = microtime(true);
+            $connection = @fsockopen('127.0.0.1', 8001, $errno, $errstr, 1.0);
+            if ($connection) {
+                $isRunning = true;
+                fclose($connection);
+                $latency = round((microtime(true) - $startTime) * 1000, 2);
+            }
+
+            $artisanOutput = '';
+            try {
+                \Illuminate\Support\Facades\Artisan::call('octane:status');
+                $artisanOutput = \Illuminate\Support\Facades\Artisan::output();
+            } catch (\Exception $e) {
+                $artisanOutput = 'Error: ' . $e->getMessage();
+            }
+
+            return response()->json([
+                'success' => true,
+                'is_running' => $isRunning,
+                'latency_ms' => $latency,
+                'artisan_output' => trim($artisanOutput),
+                'php_version' => PHP_VERSION,
+                'server_time' => now()->toDateTimeString(),
+            ]);
+            
+        case 'octane_reload':
+            try {
+                \Illuminate\Support\Facades\Artisan::call('octane:reload');
+                $artisanOutput = \Illuminate\Support\Facades\Artisan::output();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Octane workers reloaded successfully!',
+                    'artisan_output' => trim($artisanOutput),
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reload Octane workers.',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+
         default:
             return response()->json(['error' => 'Unknown action.'], 400);
     }
