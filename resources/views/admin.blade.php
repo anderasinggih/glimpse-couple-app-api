@@ -557,7 +557,7 @@
                         <div class="space-y-3 pt-2">
                             <!-- Movement Route Simulation -->
                             <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
-                                <span class="block font-bold text-emerald-400 text-sm">Glimpse 60s Route Path Simulator</span>
+                                <span class="block font-bold text-emerald-400 text-sm">Glimpse Route Path Simulator</span>
                                 <span class="block text-xs text-white/50">Simulates user driving, walking, or riding, updating coords continuously every 1-2 seconds.</span>
                                 
                                 <div class="grid grid-cols-2 gap-2 mt-2">
@@ -569,11 +569,20 @@
                                             <option value="auto">Automotive / Driving (Fast)</option>
                                         </select>
                                     </div>
-                                    <div class="flex items-end">
-                                        <button id="btnStartSim" onclick="toggleDriverSimulation()" class="w-full py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs transition-all border border-emerald-500/20">
-                                            Start 60s Route Sim
-                                        </button>
+                                    <div>
+                                        <label class="block text-[10px] text-white/45 mb-1">Route Pattern</label>
+                                        <select id="simPattern" class="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-slate-900 text-white text-xs focus:outline-none">
+                                            <option value="random">Random Cruise 🚗</option>
+                                            <option value="cloverleaf">Semanggi Loop (Bends) 🔄</option>
+                                            <option value="zigzag">Residential Grid (90° Turns) 🗺️</option>
+                                            <option value="highway">Toll Highway (Straight Cruise) 🛣️</option>
+                                        </select>
                                     </div>
+                                </div>
+                                <div class="mt-2">
+                                    <button id="btnStartSim" onclick="toggleDriverSimulation()" class="w-full py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs transition-all border border-emerald-500/20">
+                                        Start Route Sim
+                                    </button>
                                 </div>
                             </div>
 
@@ -1506,23 +1515,25 @@
             }
 
             const speedSelect = document.getElementById('simSpeed').value;
+            const patternSelect = document.getElementById('simPattern').value;
             let stepSize = 0.0001; 
             let intervalMs = 2000;
 
             if (speedSelect === 'moto') {
-                stepSize = 0.0004; 
+                stepSize = 0.0003; 
                 intervalMs = 1500;
             } else if (speedSelect === 'auto') {
-                stepSize = 0.0008; 
+                stepSize = 0.0006; 
                 intervalMs = 1000;
             }
 
-            simDurationLeft = 60; 
+            simDurationLeft = 120; // 2 minutes simulation
             document.getElementById('btnStartSim').innerText = `Stop Sim (${simDurationLeft}s)`;
             document.getElementById('btnStartSim').classList.remove('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
             document.getElementById('btnStartSim').classList.add('bg-rose-500/20', 'text-rose-400', 'border-rose-500/20');
 
             let heading = Math.random() * Math.PI * 2;
+            let tick = 0;
 
             simIntervalId = setInterval(async () => {
                 simDurationLeft -= (intervalMs / 1000);
@@ -1531,16 +1542,45 @@
                     return;
                 }
                 document.getElementById('btnStartSim').innerText = `Stop Sim (${Math.ceil(simDurationLeft)}s)`;
+                tick++;
 
-                heading += (Math.random() - 0.5) * 0.5;
-                baseLat += Math.sin(heading) * stepSize;
-                baseLon += Math.cos(heading) * stepSize;
+                let locName = "Simulated Route";
+
+                if (patternSelect === 'cloverleaf') {
+                    // Semanggi Cloverleaf Loop (Curve/Bends)
+                    locName = "Driving: Semanggi Loop 🔄";
+                    const radius = 0.0018; 
+                    const angle = tick * 0.35;
+                    // Circle path that slowly drifts over time
+                    baseLat = parseFloat(selectedUser.latitude) + Math.sin(angle) * radius + (tick * 0.00003);
+                    baseLon = parseFloat(selectedUser.longitude) + Math.cos(angle) * radius + (tick * 0.00003);
+                } else if (patternSelect === 'zigzag') {
+                    // Residential Grid (90 deg sharp bends)
+                    locName = "Driving: Residential Grid 🗺️";
+                    if (tick % 4 === 0) {
+                        heading += Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1);
+                    }
+                    baseLat += Math.sin(heading) * stepSize;
+                    baseLon += Math.cos(heading) * stepSize;
+                } else if (patternSelect === 'highway') {
+                    // Toll Highway Cruise
+                    locName = "Driving: Toll Highway 🛣️";
+                    heading += (Math.random() - 0.5) * 0.08;
+                    baseLat += Math.sin(heading) * (stepSize * 1.5);
+                    baseLon += Math.cos(heading) * (stepSize * 1.5);
+                } else {
+                    // Random Cruise
+                    locName = "Driving: Random Cruise 🚗";
+                    heading += (Math.random() - 0.5) * 0.4;
+                    baseLat += Math.sin(heading) * stepSize;
+                    baseLon += Math.cos(heading) * stepSize;
+                }
 
                 await adminApiCallSilent('update_location', {
                     user_id: userId,
                     latitude: baseLat,
                     longitude: baseLon,
-                    location_name: "Simulated Motion Route"
+                    location_name: locName
                 });
             }, intervalMs);
         }
@@ -1550,7 +1590,7 @@
                 clearInterval(simIntervalId);
                 simIntervalId = null;
             }
-            document.getElementById('btnStartSim').innerText = "Start 60s Route Sim";
+            document.getElementById('btnStartSim').innerText = "Start Route Sim";
             document.getElementById('btnStartSim').classList.remove('bg-rose-500/20', 'text-rose-400', 'border-rose-500/20');
             document.getElementById('btnStartSim').classList.add('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
         }
