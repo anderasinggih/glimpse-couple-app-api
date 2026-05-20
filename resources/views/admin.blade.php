@@ -90,12 +90,13 @@
                     <button onclick="switchTab('users')" id="tab-users" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">User Management</button>
                     <button onclick="switchTab('couples')" id="tab-couples" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Couple Pairs</button>
                     <button onclick="switchTab('control')" id="tab-control" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Control Center</button>
-                    <button onclick="switchTab('diagnostics')" id="tab-diagnostics" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white flex items-center space-x-1.5"><span class="w-1.5 h-1.5 rounded-full bg-activeCyan animate-pulse"></span><span>Live Debugger</span></button>
+                    <button onclick="switchTab('diagnostics')" id="tab-diagnostics" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white flex items-center space-x-1.5">
+                        <span>Live Debugger</span>
+                    </button>
                 </nav>
 
                 <div class="flex items-center space-x-3">
                     <div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                         <span>API Live</span>
                     </div>
                     <button onclick="handleLogout()" class="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-rose-500/20 hover:border-rose-500/30 text-white/60 hover:text-rose-400 transition-all">
@@ -740,8 +741,8 @@
                     <div class="xl:col-span-2 p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4 flex flex-col min-h-[600px]">
                         <div class="flex items-center justify-between border-b border-white/5 pb-3">
                             <h4 class="text-lg font-bold flex items-center space-x-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-electricPurple animate-ping"></span>
-                                <span>Real-time WebSocket Broadcast Inspector</span>
+                                <span class="px-2 py-0.5 rounded bg-electricPurple/20 text-electricPurple text-[10px] font-bold border border-electricPurple/30">Live</span>
+                                <span>WebSocket Broadcast Inspector</span>
                             </h4>
                             <div class="flex items-center space-x-3">
                                 <button onclick="clearDiagWSLogs()" class="text-xs text-white/50 hover:text-white transition-all underline">Clear Term</button>
@@ -804,7 +805,6 @@
                                     <input type="text" id="diagMessageText" placeholder="Enter message text..." class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-activeCyan">
                                 </div>
                                 <button onclick="sendHTTPProtobufRequest()" class="w-full py-2.5 rounded-xl bg-activeCyan/10 hover:bg-activeCyan text-activeCyan hover:text-slate-950 border border-activeCyan/30 font-bold transition-all flex items-center justify-center space-x-2">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-activeCyan animate-ping"></span>
                                     <span>POST Binary Protobuf</span>
                                 </button>
                             </div>
@@ -882,7 +882,6 @@
                                 </div>
 
                                 <button onclick="sendSimulatedFlash()" class="w-full py-2.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-500 hover:text-slate-950 border border-orange-500/30 font-bold transition-all flex items-center justify-center space-x-2">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping"></span>
                                     <span>POST Simulated Glimpse Flash</span>
                                 </button>
                             </div>
@@ -1813,7 +1812,7 @@
                         <div class="absolute -right-8 -bottom-8 w-16 h-16 rounded-full bg-activeCyan/5 blur-md group-hover:scale-150 transition-all"></div>
                         <div class="flex items-center justify-between">
                             <span class="text-activeCyan font-extrabold flex items-center space-x-1.5">
-                                <span class="w-1.5 h-1.5 rounded-full bg-activeCyan animate-ping"></span>
+                                <span class="px-1.5 py-0.5 rounded bg-activeCyan/20 text-activeCyan text-[9px] font-bold border border-activeCyan/30">Live</span>
                                 <span>PROTOBUF BINARY DECODED</span>
                             </span>
                             <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[9px] border border-emerald-500/20">-${saving}% Size Saved</span>
@@ -1823,7 +1822,6 @@
                             <!-- PURE WHATSAPP-STYLE TAGS -->
                             <div class="p-2.5 bg-slate-950 rounded border border-emerald-500/30 col-span-2 font-mono text-[9px] space-y-1 bg-gradient-to-r from-slate-950 to-slate-900 shadow-inner">
                                 <span class="block text-emerald-400 text-[8px] uppercase font-bold tracking-wider mb-1.5 flex items-center space-x-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                                     <span>WhatsApp-Style Wire Tag View (No JSON)</span>
                                 </span>
                                 <div class="text-[8.5px] text-white/90 space-y-0.5">
