@@ -413,9 +413,7 @@ class GlimpseController extends Controller
         // Clean up flashes older than 24 hours along with their images
         $oldFlashes = \App\Models\Flash::where('created_at', '<', now()->subDays(1))->get();
         foreach ($oldFlashes as $oldFlash) {
-            if ($oldFlash->photo_url) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete(str_replace('/storage/', '', $oldFlash->photo_url));
-            }
+            $this->deleteFlashFile($oldFlash->photo_url);
             $oldFlash->delete();
         }
 
@@ -1316,12 +1314,18 @@ class GlimpseController extends Controller
             ->first();
 
         if ($flash) {
-            if ($flash->photo_url) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete(str_replace('/storage/', '', $flash->photo_url));
-            }
+            $this->deleteFlashFile($flash->photo_url);
             $flash->delete();
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    private function deleteFlashFile($photoUrl)
+    {
+        if (!$photoUrl) return;
+        $path = parse_url($photoUrl, PHP_URL_PATH);
+        $path = preg_replace('/^\/?storage\//', '', $path);
+        \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
     }
 }
