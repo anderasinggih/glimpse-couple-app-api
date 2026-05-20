@@ -33,9 +33,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/glimpse/schedules', [GlimpseController::class, 'getSchedules']);
     Route::delete('/glimpse/schedule/{id}', [GlimpseController::class, 'deleteSchedule']);
 
-    // Chat Rooms routes
     Route::get('/glimpse/chat-rooms', [GlimpseController::class, 'getChatRooms']);
     Route::post('/glimpse/chat-rooms', [GlimpseController::class, 'createChatRoom']);
     Route::delete('/glimpse/chat-rooms/{id}', [GlimpseController::class, 'deleteChatRoom']);
     Route::post('/glimpse/chat-rooms/{id}/rename', [GlimpseController::class, 'renameChatRoom']);
+    Route::post('/glimpse/chat-rooms/{id}/theme', [GlimpseController::class, 'updateChatRoomTheme']);
+    Route::post('/glimpse/chat-rooms/{id}/request-delete', [GlimpseController::class, 'requestDeleteChatRoom']);
+    Route::post('/glimpse/chat-rooms/{id}/decline-delete', [GlimpseController::class, 'declineDeleteChatRoom']);
+    Route::post('/glimpse/chat-rooms/{id}/confirm-delete', [GlimpseController::class, 'confirmDeleteChatRoom']);
 });

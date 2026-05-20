@@ -1197,6 +1197,9 @@ class GlimpseController extends Controller
                 'couple_id' => (int)$room->couple_id,
                 'name' => (string)$room->name,
                 'is_main' => (bool)$room->is_main,
+                'theme_color' => $room->theme_color,
+                'background_color' => $room->background_color,
+                'delete_requested_by' => $room->delete_requested_by ? (int)$room->delete_requested_by : null,
                 'latest_message' => $latestMessage ? [
                     'id' => (int)$latestMessage->id,
                     'message' => (string)$latestMessage->message,
@@ -1236,6 +1239,7 @@ class GlimpseController extends Controller
             'couple_id' => (int)$room->couple_id,
             'name' => (string)$room->name,
             'is_main' => (bool)$room->is_main,
+            'delete_requested_by' => null,
             'latest_message' => null,
             'unread_count' => 0,
             'created_at' => \Carbon\Carbon::parse($room->created_at)->toIso8601String(),
@@ -1330,6 +1334,52 @@ class GlimpseController extends Controller
         ]);
     }
 
+    public function updateChatRoomTheme(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $request->validate([
+            'theme_color' => 'nullable|string|max:20',
+            'background_color' => 'nullable|string|max:20'
+        ]);
+
+        $room = \DB::table('chat_rooms')
+            ->where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$room) {
+            return response()->json(['message' => 'Chat room not found'], 404);
+        }
+
+        $themeColor = $request->input('theme_color');
+        $backgroundColor = $request->input('background_color');
+
+        \DB::table('chat_rooms')->where('id', $id)->update([
+            'theme_color' => $themeColor,
+            'background_color' => $backgroundColor,
+            'updated_at' => now()
+        ]);
+
+        try {
+            broadcast(new \App\Events\ChatRoomThemeUpdated($user->couple_id, (int)$id, $themeColor, $backgroundColor))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        return response()->json([
+            'status' => 'ok',
+            'room' => [
+                'id' => (int)$id,
+                'theme_color' => $themeColor,
+                'background_color' => $backgroundColor
+            ]
+        ]);
+    }
+
     public function acknowledgeFlash(Request $request, $id)
     {
         $user = $request->user();
@@ -1355,5 +1405,121 @@ class GlimpseController extends Controller
         $path = parse_url($photoUrl, PHP_URL_PATH);
         $path = preg_replace('/^\/?storage\//', '', $path);
         \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+    }
+
+    public function requestDeleteChatRoom(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $room = \DB::table('chat_rooms')
+            ->where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$room) {
+            return response()->json(['message' => 'Chat room not found'], 404);
+        }
+
+        \DB::table('chat_rooms')->where('id', $id)->update([
+            'delete_requested_by' => $user->id,
+            'updated_at' => now()
+        ]);
+
+        try {
+            broadcast(new \App\Events\ChatRoomDeleteStatusChanged($user->couple_id, (int)$id, (int)$user->id))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        return response()->json(['status' => 'ok', 'delete_requested_by' => $user->id]);
+    }
+
+    public function declineDeleteChatRoom(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $room = \DB::table('chat_rooms')
+            ->where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$room) {
+            return response()->json(['message' => 'Chat room not found'], 404);
+        }
+
+        \DB::table('chat_rooms')->where('id', $id)->update([
+            'delete_requested_by' => null,
+            'updated_at' => now()
+        ]);
+
+        try {
+            broadcast(new \App\Events\ChatRoomDeleteStatusChanged($user->couple_id, (int)$id, null))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function confirmDeleteChatRoom(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $room = \DB::table('chat_rooms')
+            ->where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$room) {
+            return response()->json(['message' => 'Chat room not found'], 404);
+        }
+
+        if ($room->delete_requested_by === null) {
+            return response()->json(['message' => 'No delete request active for this room'], 400);
+        }
+
+        if ($room->is_main) {
+            // Delete all messages in this room
+            \DB::table('messages')
+                ->where('couple_id', $user->couple_id)
+                ->where(function($q) use ($room) {
+                    $q->where('room_id', $room->id)
+                      ->orWhereNull('room_id');
+                })
+                ->delete();
+
+            \DB::table('chat_rooms')->where('id', $id)->update([
+                'delete_requested_by' => null,
+                'updated_at' => now()
+            ]);
+
+            try {
+                broadcast(new \App\Events\ChatRoomDeleteStatusChanged($user->couple_id, (int)$id, null))->toOthers();
+                broadcast(new \App\Events\ChatRoomDeleted($user->couple_id, (int)$id))->toOthers();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+            }
+
+            return response()->json(['status' => 'cleared']);
+        } else {
+            \DB::table('chat_rooms')->where('id', $id)->delete();
+
+            try {
+                broadcast(new \App\Events\ChatRoomDeleted($user->couple_id, (int)$id))->toOthers();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+            }
+
+            return response()->json(['status' => 'deleted']);
+        }
     }
 }
