@@ -12,6 +12,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/glimpse/status', [GlimpseController::class, 'updateStatus']);
     Route::post('/glimpse/photo', [GlimpseController::class, 'uploadPhoto']);
     Route::get('/glimpse/flashes', [GlimpseController::class, 'getFlashes']);
+    Route::post('/glimpse/flashes/{id}/ack', [GlimpseController::class, 'acknowledgeFlash']);
     Route::post('/glimpse/connect', [GlimpseController::class, 'connect']);
     Route::post('/glimpse/connect/accept', [GlimpseController::class, 'acceptConnect']);
     Route::post('/glimpse/connect/decline', [GlimpseController::class, 'declineConnect']);
