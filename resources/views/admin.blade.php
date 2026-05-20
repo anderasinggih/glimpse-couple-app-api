@@ -455,7 +455,7 @@
                             
                             <!-- Presets -->
                             <div class="space-y-2">
-                                <span class="block text-[10px] font-bold uppercase text-white/40 tracking-wider">⚡ Quick Presets</span>
+                                <span class="block text-[10px] font-bold uppercase text-white/40 tracking-wider">Quick Presets</span>
                                 <div class="grid grid-cols-2 gap-2.5">
                                     <button onclick="triggerSimulatedUpdate('battery_low')" class="py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 font-semibold text-[11px] transition-all">
                                         Low Battery (12%)
@@ -474,7 +474,7 @@
 
                             <!-- Custom Injector Form -->
                             <div class="pt-4 border-t border-white/5 space-y-3">
-                                <span class="block text-[10px] font-bold uppercase text-white/40 tracking-wider">🛠️ Custom State Injector</span>
+                                <span class="block text-[10px] font-bold uppercase text-white/40 tracking-wider">Custom State Injector</span>
                                 
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
@@ -541,6 +541,48 @@
                                         Execute Purge
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Movement & Traffic Burst Simulator -->
+                    <div class="p-6 rounded-2xl border border-white/10 bg-white/5 space-y-4">
+                        <h4 class="text-lg font-bold flex items-center space-x-2">
+                            <span class="w-1.5 h-6 rounded bg-emerald-500"></span>
+                            <span>Dynamic Movement & Concurrency Burst Simulator</span>
+                        </h4>
+                        <p class="text-sm text-white/60">Simulate high-frequency coordinate movement routes (Zenly Slide test) and multi-packet chat bursts.</p>
+                        
+                        <div class="space-y-3 pt-2">
+                            <!-- Movement Route Simulation -->
+                            <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
+                                <span class="block font-bold text-emerald-400 text-sm">Zenly 60s Route Path Simulator</span>
+                                <span class="block text-xs text-white/50">Simulates user driving, walking, or riding, updating coords continuously every 1-2 seconds.</span>
+                                
+                                <div class="grid grid-cols-2 gap-2 mt-2">
+                                    <div>
+                                        <label class="block text-[10px] text-white/45 mb-1">Velocity Speed</label>
+                                        <select id="simSpeed" class="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-slate-900 text-white text-xs focus:outline-none">
+                                            <option value="walk">Walking (Slow)</option>
+                                            <option value="moto" selected>Motorcycle (Medium)</option>
+                                            <option value="auto">Automotive / Driving (Fast)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-end">
+                                        <button id="btnStartSim" onclick="toggleDriverSimulation()" class="w-full py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs transition-all border border-emerald-500/20">
+                                            Start 60s Route Sim
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chat Concurrency Burst Simulation -->
+                            <div class="p-4 bg-royalPurple/10 border border-royalPurple/20 rounded-xl space-y-2">
+                                <span class="block font-bold text-royalPurple text-sm">WebSocket Concurrency Burst Test</span>
+                                <span class="block text-xs text-white/50">Sends 10 consecutive simulated payload state triggers to evaluate sequence delivery stability.</span>
+                                <button id="btnStartBurst" onclick="runBurstSimulation()" class="w-full py-2 rounded-lg bg-royalPurple hover:bg-royalPurple/80 text-white font-bold text-xs transition-all mt-2">
+                                    Trigger Concurrency Burst
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -821,7 +863,7 @@
 
                                 <div>
                                     <label class="block text-[10px] text-white/50 uppercase font-semibold mb-1">Status Note</label>
-                                    <input type="text" id="flashStatus" value="Testing Glimpse Flash 📸" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
+                                    <input type="text" id="flashStatus" value="Testing Glimpse Flash" class="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-white focus:outline-none focus:border-orange-500">
                                 </div>
 
                                 <div class="p-3 bg-slate-900/60 border border-white/5 rounded-xl space-y-3">
@@ -1411,6 +1453,152 @@
             }
         }
 
+        async function adminApiCallSilent(action, payload) {
+            const token = localStorage.getItem('glimpse_admin_token');
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: action, ...payload })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    console.error(`Silent API error: ${data.error || 'Request failed'}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        let simIntervalId = null;
+        let simDurationLeft = 0;
+        let baseLat = -6.2088;
+        let baseLon = 106.8456;
+
+        function toggleDriverSimulation() {
+            const userId = document.getElementById('simulatorUserSelect').value;
+            if (!userId) {
+                alert("Please select a user first!");
+                return;
+            }
+
+            if (simIntervalId) {
+                stopDriverSimulation();
+                return;
+            }
+
+            const selectedUser = appData.users.find(u => u.id == userId);
+            if (selectedUser && selectedUser.latitude) {
+                baseLat = parseFloat(selectedUser.latitude);
+                baseLon = parseFloat(selectedUser.longitude);
+            } else {
+                baseLat = -6.2088;
+                baseLon = 106.8456;
+            }
+
+            const speedSelect = document.getElementById('simSpeed').value;
+            let stepSize = 0.0001; 
+            let intervalMs = 2000;
+
+            if (speedSelect === 'moto') {
+                stepSize = 0.0004; 
+                intervalMs = 1500;
+            } else if (speedSelect === 'auto') {
+                stepSize = 0.0008; 
+                intervalMs = 1000;
+            }
+
+            simDurationLeft = 60; 
+            document.getElementById('btnStartSim').innerText = `Stop Sim (${simDurationLeft}s)`;
+            document.getElementById('btnStartSim').classList.remove('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
+            document.getElementById('btnStartSim').classList.add('bg-rose-500/20', 'text-rose-400', 'border-rose-500/20');
+
+            let heading = Math.random() * Math.PI * 2;
+
+            simIntervalId = setInterval(async () => {
+                simDurationLeft -= (intervalMs / 1000);
+                if (simDurationLeft <= 0) {
+                    stopDriverSimulation();
+                    return;
+                }
+                document.getElementById('btnStartSim').innerText = `Stop Sim (${Math.ceil(simDurationLeft)}s)`;
+
+                heading += (Math.random() - 0.5) * 0.5;
+                baseLat += Math.sin(heading) * stepSize;
+                baseLon += Math.cos(heading) * stepSize;
+
+                await adminApiCallSilent('update_location', {
+                    user_id: userId,
+                    latitude: baseLat,
+                    longitude: baseLon,
+                    location_name: "Simulated Motion Route"
+                });
+            }, intervalMs);
+        }
+
+        function stopDriverSimulation() {
+            if (simIntervalId) {
+                clearInterval(simIntervalId);
+                simIntervalId = null;
+            }
+            document.getElementById('btnStartSim').innerText = "Start 60s Route Sim";
+            document.getElementById('btnStartSim').classList.remove('bg-rose-500/20', 'text-rose-400', 'border-rose-500/20');
+            document.getElementById('btnStartSim').classList.add('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
+        }
+
+        async function runBurstSimulation() {
+            const userId = document.getElementById('simulatorUserSelect').value;
+            if (!userId) {
+                alert("Please select a user first!");
+                return;
+            }
+
+            const selectedUser = appData.users.find(u => u.id == userId);
+            if (!selectedUser || !selectedUser.couple_id) {
+                alert("This user is not paired! Pair them first to test chats.");
+                return;
+            }
+
+            const couple = appData.couples.find(c => c.id == selectedUser.couple_id);
+            if (!couple || !couple.rooms || couple.rooms.length === 0) {
+                alert("No active chat room found for this couple.");
+                return;
+            }
+
+            const messages = [
+                "Testing burst transmission...",
+                "Packet #1 dispatched.",
+                "Packet #2 dispatched.",
+                "Packet #3 dispatched.",
+                "WebSocket concurrency lock check.",
+                "Sending atomic payload.",
+                "Simulating high-speed chat input.",
+                "Are you receiving this smoothly?",
+                "Sequence verification complete.",
+                "End of burst test suite."
+            ];
+
+            document.getElementById('btnStartBurst').innerText = "Bursting...";
+            document.getElementById('btnStartBurst').disabled = true;
+
+            for (let i = 0; i < messages.length; i++) {
+                await adminApiCallSilent('push_diagnostics', {
+                    user_id: userId,
+                    type: 'custom',
+                    status_note: `Burst Msg ${i+1}: ${messages[i]}`
+                });
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            document.getElementById('btnStartBurst').innerText = "Trigger Concurrency Burst";
+            document.getElementById('btnStartBurst').disabled = false;
+            alert("Burst test successfully dispatched! Inspect the websocket terminal logs for sequence verification.");
+        }
+
         // --- WEBSOCKET DIAGNOSTICS MONITOR ---
         let liveWS = null;
         let wsPingInterval = null;
@@ -1620,7 +1808,7 @@
                         <div class="flex items-center justify-between">
                             <span class="text-activeCyan font-extrabold flex items-center space-x-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full bg-activeCyan animate-ping"></span>
-                                <span>⚡️ PROTOBUF BINARY DECODED</span>
+                                <span>PROTOBUF BINARY DECODED</span>
                             </span>
                             <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[9px] border border-emerald-500/20">-${saving}% Size Saved</span>
                         </div>
@@ -1941,11 +2129,11 @@
                     // Update Room selection dropdown
                     const roomSelect = document.getElementById('spyRoomSelect');
                     const currentSelection = selectedSpyRoomId;
-                    roomSelect.innerHTML = '<option value="main">💬 General Chat (Main Room)</option>';
+                    roomSelect.innerHTML = '<option value="main">General Chat (Main Room)</option>';
                     activeSpyRooms.forEach(r => {
                         const opt = document.createElement('option');
                         opt.value = r.id;
-                        opt.innerText = `🔒 ${r.name} (Room ID ${r.id})`;
+                        opt.innerText = `Room: ${r.name} (Room ID ${r.id})`;
                         roomSelect.appendChild(opt);
                     });
 
@@ -2349,7 +2537,7 @@
                     const decoded = decodeProtobufJS(base64);
 
                     const duration = (performance.now() - startTime).toFixed(2);
-                    const waStyle = `⚡️ WhatsApp-Style Wire Tag View (No JSON):
+                    const waStyle = `WhatsApp-Style Wire Tag View (No JSON):
 1 = ${decoded.id || '-'} (Message ID)
 2 = ${decoded.room_id || '0'} (Room ID)
 3 = ${decoded.sender_id || '-'} (Sender ID)
@@ -2519,7 +2707,7 @@
                 }
 
                 if (response.ok && result && result.success) {
-                    traceSpan.innerHTML += `<span class="text-emerald-400">⚡️ SUCCESS: Glimpse Flash record created and broadcasted!</span>\n\n`;
+                    traceSpan.innerHTML += `<span class="text-emerald-400">SUCCESS: Glimpse Flash record created and broadcasted!</span>\n\n`;
                     traceSpan.innerHTML += `<span class="text-orange-400">Database Record:</span>\n` + JSON.stringify(result.flash, null, 4) + `\n\n`;
                     traceSpan.innerHTML += `<span class="text-orange-400">Public Storage URL:</span>\n<a href="${result.public_storage_url}" target="_blank" class="text-activeCyan underline break-all">${result.public_storage_url}</a>\n\n`;
                     traceSpan.innerHTML += `<span class="text-orange-400">Physical Path on Disk:</span>\n<span class="text-white/60">${result.real_path_on_disk}</span>`;
@@ -2535,7 +2723,7 @@
                     const httpStatus = `HTTP ${response.status}`;
                     if (result && result.error) {
                         // Our PHP try-catch returned a structured error
-                        traceSpan.innerHTML += `<span class="text-rose-400">❌ UPLOAD FAILED (${httpStatus}):</span>\n`;
+                        traceSpan.innerHTML += `<span class="text-rose-400">UPLOAD FAILED (${httpStatus}):</span>\n`;
                         traceSpan.innerHTML += `<span class="text-amber-400">Exception:</span> ${result.error}\n`;
                         traceSpan.innerHTML += `<span class="text-amber-400">Class:</span> ${result.exception_class || '?'}\n`;
                         traceSpan.innerHTML += `<span class="text-amber-400">File:</span> ${result.file || '?'}\n`;
@@ -2544,18 +2732,18 @@
                         }
                     } else if (result && result.message) {
                         // Laravel's own error response (e.g. {"message": "Server Error"})
-                        traceSpan.innerHTML += `<span class="text-rose-400">❌ SERVER ERROR (${httpStatus}):</span> ${result.message}\n\n`;
-                        traceSpan.innerHTML += `<span class="text-white/40">💡 Tip: git pull belum dijalankan di server, atau ada PHP parse error.</span>\n`;
+                        traceSpan.innerHTML += `<span class="text-rose-400">SERVER ERROR (${httpStatus}):</span> ${result.message}\n\n`;
+                        traceSpan.innerHTML += `<span class="text-white/40">Tip: git pull belum dijalankan di server, atau ada PHP parse error.</span>\n`;
                         traceSpan.innerHTML += `<span class="text-white/40">Check laravel.log: </span><a href="/view-logs" target="_blank" class="text-activeCyan underline">/view-logs</a>`;
                     } else {
                         // HTML error page - show first 500 chars for clues
-                        traceSpan.innerHTML += `<span class="text-rose-400">❌ NON-JSON ERROR (${httpStatus}):</span>\n`;
+                        traceSpan.innerHTML += `<span class="text-rose-400">NON-JSON ERROR (${httpStatus}):</span>\n`;
                         traceSpan.innerHTML += `<span class="text-white/60">${rawText.substring(0, 600).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
                     }
                 }
             } catch (err) {
                 console.error(err);
-                traceSpan.innerHTML += `<span class="text-rose-400">❌ JS EXCEPTION:</span> ${err.message}`;
+                traceSpan.innerHTML += `<span class="text-rose-400">JS EXCEPTION:</span> ${err.message}`;
             }
         }
 
@@ -2673,12 +2861,12 @@
 
                 const decoded = decodeProtobufJS(base64);
                 if (decoded && Object.keys(decoded).length > 0) {
-                    output.innerText = "⚡️ SUCCESS: Pure Protobuf Decoded Fields:\n\n" + JSON.stringify(decoded, null, 4);
+                    output.innerText = "SUCCESS: Pure Protobuf Decoded Fields:\n\n" + JSON.stringify(decoded, null, 4);
                 } else {
-                    output.innerText = "⚠️ WARNING: Decoded empty object. Ensure the payload matches the Glimpse v3 Protobuf field definitions.";
+                    output.innerText = "WARNING: Decoded empty object. Ensure the payload matches the Glimpse v3 Protobuf field definitions.";
                 }
             } catch (err) {
-                output.innerText = "❌ ERROR: Failed to parse input. Ensure formatting is correct.\n\nDetails: " + err.message;
+                output.innerText = "ERROR: Failed to parse input. Ensure formatting is correct.\n\nDetails: " + err.message;
             }
         }
 

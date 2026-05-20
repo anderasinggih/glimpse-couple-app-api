@@ -260,7 +260,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
                     <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-electricPurple/10 border border-electricPurple/20 text-electricPurple text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                        <span>📖 REST · WebSocket · Protobuf Binary Protocol</span>
+                        <span>REST · WebSocket · Protobuf Binary Protocol</span>
                     </div>
                     <h3 class="text-3xl sm:text-4xl font-extrabold tracking-tight">API Reference Docs</h3>
                     <p class="text-white/60 text-sm">Glimpse uses a hybrid protocol: JSON for state/auth endpoints, and <strong class="text-electricPurple">custom Protobuf binary encoding</strong> for the chat pipeline to minimize payload size and maximize throughput on mobile networks.</p>
@@ -491,7 +491,7 @@
                                         <span class="block text-[9px] text-white/40 uppercase font-bold tracking-wider mb-2">Request — Protobuf Binary (Content-Type: application/octet-stream)</span>
                                         <pre class="text-electricPurple font-medium">Field 1 (varint): sender_id = 1
 Field 2 (varint): room_id   = 5
-Field 3 (string): message   = "Hey love! ❤️"
+Field 3 (string): message   = "Hey love!"
 Field 4 (string): created_at= "2026-05-19T..."
 
 // Encoded as raw binary, not JSON
@@ -503,7 +503,7 @@ Field 4 (string): created_at= "2026-05-19T..."
                                         <pre class="text-activeCyan font-medium">Field 1 (varint): id        = 125
 Field 2 (varint): room_id   = 5
 Field 3 (varint): sender_id = 1
-Field 4 (string): message   = "Hey love! ❤️"
+Field 4 (string): message   = "Hey love!"
 Field 5 (string): created_at= "2026-05-19T..."
 
 // iOS: ChatMessage.decodeProtobuf(from: data)</pre>
