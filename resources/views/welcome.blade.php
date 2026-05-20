@@ -286,6 +286,10 @@
                             <span class="block text-sm">4. Intimate Chats & Flash</span>
                             <span class="block text-xs text-white/50 font-normal mt-0.5">Real-time chat, Seen receipts, & Flash photo uploads</span>
                         </button>
+                        <button onclick="switchDocTab('protobuf')" id="doc-tab-protobuf" class="w-full text-left p-4 rounded-xl border border-white/5 bg-white/5 text-white/70 hover:text-white transition-all">
+                            <span class="block text-sm">5. Protobuf Spec & Code</span>
+                            <span class="block text-xs text-white/50 font-normal mt-0.5">Protobuf proto3 schemas & Swift/PHP code structures</span>
+                        </button>
                     </div>
 
                     <!-- Right Docs Content Code blocks -->
@@ -543,6 +547,147 @@ Field 5 (string): created_at= "2026-05-19T..."
                                     <span class="block text-[9px] text-white/40 uppercase font-bold tracking-wider mb-2">Request Headers</span>
                                     <pre class="text-electricPurple font-medium">Content-Type: multipart/form-data
 Authorization: Bearer 2|sanctum_access_token</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PROTOBUF DOCS -->
+                        <div id="doc-content-protobuf" class="doc-content space-y-6 hidden text-left">
+                            <div class="space-y-2 border-b border-white/5 pb-4">
+                                <h4 class="text-xl font-bold text-white flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 rounded bg-electricPurple/10 border border-electricPurple/20 text-electricPurple text-xs font-bold font-mono">PROTO3</span>
+                                    <span>Protocol Buffer Specifications</span>
+                                </h4>
+                                <p class="text-xs text-white/60">
+                                    To maximize performance and battery longevity, Glimpse bypasses heavy JSON strings for real-time location pushes and chat pipelines. The data is encoded into lightweight, binary Protocol Buffer payloads.
+                                </p>
+                            </div>
+
+                            <!-- Spec 1: ChatMessage Schema -->
+                            <div class="space-y-3">
+                                <h5 class="text-sm font-bold text-electricPurple uppercase tracking-wider">1. Chat Message Proto Schema</h5>
+                                <div class="rounded-xl overflow-hidden bg-slate-900 border border-white/10 p-4 font-mono text-[11px]">
+                                    <pre class="text-activeCyan font-medium">syntax = "proto3";
+
+message ChatMessage {
+    int32 id = 1;
+    int32 room_id = 2;
+    int32 sender_id = 3;
+    string message = 4;
+    string created_at = 5;
+}</pre>
+                                </div>
+                                <p class="text-xs text-white/50">
+                                    This binary structure compresses a standard 300-byte JSON message down to just ~40-60 bytes.
+                                </p>
+                            </div>
+
+                            <!-- Spec 2: GlimpseUserStatus Schema -->
+                            <div class="space-y-3">
+                                <h5 class="text-sm font-bold text-electricPurple uppercase tracking-wider">2. User GPS & Battery Status Schema</h5>
+                                <div class="rounded-xl overflow-hidden bg-slate-900 border border-white/10 p-4 font-mono text-[11px]">
+                                    <pre class="text-activeCyan font-medium">syntax = "proto3";
+
+message GlimpseUserStatus {
+    string latitude = 1;      // String to prevent precision loss
+    string longitude = 2;     // String to prevent precision loss
+    int32 battery_level = 3;
+    int32 is_charging = 4;    // 0 = false, 1 = true
+    string status_note = 5;
+    string location_name = 6;
+    string wifi_bssid = 7;
+}</pre>
+                                </div>
+                            </div>
+
+                            <!-- Spec 3: GlimpsePartnerStateUpdate Schema -->
+                            <div class="space-y-3">
+                                <h5 class="text-sm font-bold text-electricPurple uppercase tracking-wider">3. Partner Live State Update Schema</h5>
+                                <div class="rounded-xl overflow-hidden bg-slate-900 border border-white/10 p-4 font-mono text-[11px]">
+                                    <pre class="text-activeCyan font-medium">syntax = "proto3";
+
+message GlimpsePartnerStateUpdate {
+    int32 user_id = 1;
+    string latitude = 2;
+    string longitude = 3;
+    int32 battery_level = 4;
+    int32 is_charging = 5;    // 0 = false, 1 = true
+    string status_note = 6;
+    string location_name = 7;
+    string wifi_bssid = 8;
+    int32 last_seen_message_id = 9;
+}</pre>
+                                </div>
+                            </div>
+
+                            <!-- Code Implementation Specs -->
+                            <div class="space-y-4 border-t border-white/5 pt-6">
+                                <h4 class="text-md font-bold text-white uppercase tracking-wider">Swift Client Implementation Code</h4>
+                                <p class="text-xs text-white/50">
+                                    The iOS application encodes variables manually using a high-speed bitwise `ProtobufWriter` and parses incoming streams using `ProtobufReader`, minimizing external library dependencies:
+                                </p>
+                                <div class="rounded-xl overflow-hidden bg-slate-900 border border-white/10 p-4 font-mono text-[11px] max-h-72 overflow-y-auto">
+                                    <pre class="text-electricPurple font-medium">// Manual Protobuf Serialization in Swift (GlimpseProtobuf.swift)
+struct ProtobufWriter {
+    private(set) var data = Data()
+    
+    mutating func writeVarint(_ val: UInt64) {
+        var value = val
+        while value >= 0x80 {
+            data.append(UInt8((value & 0x7F) | 0x80))
+            value >>= 7
+        }
+        data.append(UInt8(value & 0x7F))
+    }
+    
+    mutating func writeTag(fieldNumber: Int, wireType: Int) {
+        writeVarint(UInt64((fieldNumber << 3) | wireType))
+    }
+    
+    mutating func writeInt32Field(fieldNumber: Int, value: Int) {
+        writeTag(fieldNumber: fieldNumber, wireType: 0)
+        writeVarint(UInt64(value))
+    }
+    
+    mutating func writeStringField(fieldNumber: Int, value: String) {
+        guard let stringData = value.data(using: .utf8) else { return }
+        writeTag(fieldNumber: fieldNumber, wireType: 2)
+        writeVarint(UInt64(stringData.count))
+        data.append(stringData)
+    }
+}</pre>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 pt-2">
+                                <h4 class="text-md font-bold text-white uppercase tracking-wider">Laravel PHP Parser & Server Broadcast</h4>
+                                <p class="text-xs text-white/50">
+                                    When the Laravel backend receives the raw binary request header `Content-Type: application/x-protobuf`, it handles it using a PHP Protobuf decoder to decode message tags:
+                                </p>
+                                <div class="rounded-xl overflow-hidden bg-slate-900 border border-white/10 p-4 font-mono text-[11px] max-h-72 overflow-y-auto">
+                                    <pre class="text-activeCyan font-medium">// Laravel Controller: Decoding Protobuf Bytes & Broadcasting
+public function sendProtobufChat(Request $request) {
+    $rawBytes = $request->getContent();
+    
+    // Decodes Proto3 Fields (1=id, 2=roomId, 3=senderId, 4=message, 5=createdAt)
+    $protoMessage = new \App\Protobuf\ChatMessage();
+    $protoMessage->mergeFromString($rawBytes);
+    
+    // Store in MySQL database persistent schema
+    $chat = ChatMessage::create([
+        'room_id' => $protoMessage->getRoomId(),
+        'sender_id' => $protoMessage->getSenderId(),
+        'message' => $protoMessage->getMessage(),
+    ]);
+    
+    // Prepare Base64 encoded payload for real-time WebSocket distribution
+    $encodedBase64 = base64_encode($rawBytes);
+    
+    // Broadcast via Pusher WebSockets to listening partner devices
+    broadcast(new GlimpseChatEvent($chat->couple_id, $encodedBase64))->toOthers();
+    
+    return response($rawBytes)->header('Content-Type', 'application/x-protobuf');
+}</pre>
                                 </div>
                             </div>
                         </div>
