@@ -200,9 +200,13 @@
                                 @endphp
                                 <span class="font-bold text-white">{{ $dbDriver }}</span>
                             </div>
-                            <div class="p-3 bg-white/5 rounded-xl border border-white/5">
-                                <span class="block text-[10px] text-white/50 uppercase font-semibold">Server Host</span>
-                                <span class="font-bold text-white">Octane (Swoole/Roadrunner)</span>
+                            <div class="p-3 bg-white/5 rounded-xl border border-white/5 flex flex-col justify-between">
+                                <span class="block text-[10px] text-white/50 uppercase font-semibold">Server Host / Octane</span>
+                                <div class="flex items-center space-x-1.5 mt-0.5">
+                                    <span id="headerOctaneIndicator" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                    <span id="headerOctaneStatus" class="font-bold text-xs text-amber-400">CHECKING</span>
+                                    <span class="text-[9px] text-white/40 font-mono">(Swoole/Roadrunner)</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3086,12 +3090,25 @@
                 if (response.ok) {
                     const result = await response.json();
                     
+                    const headerIndicator = document.getElementById('headerOctaneIndicator');
+                    const headerStatus = document.getElementById('headerOctaneStatus');
+                    
                     if (result.is_running) {
                         badge.innerText = "RUNNING";
                         badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                        if (headerIndicator && headerStatus) {
+                            headerIndicator.className = "w-2 h-2 rounded-full bg-emerald-500";
+                            headerStatus.innerText = "ON";
+                            headerStatus.className = "font-bold text-xs text-emerald-400";
+                        }
                     } else {
                         badge.innerText = "STOPPED";
                         badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
+                        if (headerIndicator && headerStatus) {
+                            headerIndicator.className = "w-2 h-2 rounded-full bg-rose-500";
+                            headerStatus.innerText = "OFF";
+                            headerStatus.className = "font-bold text-xs text-rose-400";
+                        }
                     }
 
                     latencySpan.innerText = result.latency_ms + " ms";
@@ -3106,11 +3123,23 @@
                 } else {
                     badge.innerText = "OFFLINE";
                     badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
+                    updateHeaderOffline();
                 }
             } catch (err) {
                 badge.innerText = "ERROR";
                 badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
                 console.error("Octane status check failed:", err);
+                updateHeaderOffline();
+            }
+
+            function updateHeaderOffline() {
+                const headerIndicator = document.getElementById('headerOctaneIndicator');
+                const headerStatus = document.getElementById('headerOctaneStatus');
+                if (headerIndicator && headerStatus) {
+                    headerIndicator.className = "w-2 h-2 rounded-full bg-rose-500";
+                    headerStatus.innerText = "OFFLINE";
+                    headerStatus.className = "font-bold text-xs text-rose-400";
+                }
             }
         }
 
