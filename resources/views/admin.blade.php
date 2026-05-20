@@ -576,6 +576,11 @@
                                             <option value="cloverleaf">Semanggi Loop (Bends) 🔄</option>
                                             <option value="zigzag">Residential Grid (90° Turns) 🗺️</option>
                                             <option value="highway">Toll Highway (Straight Cruise) 🛣️</option>
+                                            <option value="trafficjam">Traffic Jam (Stop & Go) 🚗⚠️</option>
+                                            <option value="speedchase">Speeding Chase (130 km/h) 🏎️💨</option>
+                                            <option value="trainride">Commuter Train (Station Stops) 🚄</option>
+                                            <option value="jogging">Jogging in Park 🏃‍♂️🌳</option>
+                                            <option value="gpsglitch">GPS Signal Jitter/Glitch 📡❌</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1568,6 +1573,56 @@
                     heading += (Math.random() - 0.5) * 0.08;
                     baseLat += Math.sin(heading) * (stepSize * 1.5);
                     baseLon += Math.cos(heading) * (stepSize * 1.5);
+                } else if (patternSelect === 'trafficjam') {
+                    // Traffic Jam (Stop & Go)
+                    let isStopped = (tick % 6 === 0 || tick % 6 === 1);
+                    if (!isStopped) {
+                        locName = "Traffic: Stuck in Gridlock 🚗⚠️";
+                        heading += (Math.random() - 0.5) * 0.2;
+                        baseLat += Math.sin(heading) * (stepSize * 0.15);
+                        baseLon += Math.cos(heading) * (stepSize * 0.15);
+                    } else {
+                        locName = "Traffic: Stationary Gridlock 🛑";
+                    }
+                } else if (patternSelect === 'speedchase') {
+                    // Speeding Chase
+                    locName = "Driving: Highway Speeding 🏎️💨";
+                    heading += (Math.random() - 0.5) * 0.15;
+                    baseLat += Math.sin(heading) * (stepSize * 2.5);
+                    baseLon += Math.cos(heading) * (stepSize * 2.5);
+                } else if (patternSelect === 'trainride') {
+                    // Commuter Train (Station Stops)
+                    let isAtStation = (tick % 20 >= 15);
+                    if (isAtStation) {
+                        locName = "Train: Station Stop 🚉";
+                    } else {
+                        locName = "Train: Riding Commuter Line 🚄";
+                        baseLat += Math.sin(heading) * (stepSize * 1.8);
+                        baseLon += Math.cos(heading) * (stepSize * 1.8);
+                    }
+                } else if (patternSelect === 'jogging') {
+                    // Jogging
+                    locName = "Jogging: Central Park 🏃‍♂️🌳";
+                    const jogHeading = tick * 0.15;
+                    baseLat += Math.sin(jogHeading) * (stepSize * 0.3);
+                    baseLon += Math.cos(jogHeading) * (stepSize * 0.3);
+                } else if (patternSelect === 'gpsglitch') {
+                    // GPS Jitter/Glitch
+                    locName = "Walking: Bad GPS Reception 📡❌";
+                    heading += (Math.random() - 0.5) * 0.25;
+                    baseLat += Math.sin(heading) * (stepSize * 0.4);
+                    baseLon += Math.cos(heading) * (stepSize * 0.4);
+                    
+                    let noiseLat = (Math.random() - 0.5) * 0.0006;
+                    let noiseLon = (Math.random() - 0.5) * 0.0006;
+                    
+                    await adminApiCallSilent('update_location', {
+                        user_id: userId,
+                        latitude: baseLat + noiseLat,
+                        longitude: baseLon + noiseLon,
+                        location_name: locName
+                    });
+                    return; // Skip standard update_location at the bottom
                 } else {
                     // Random Cruise
                     locName = "Driving: Random Cruise 🚗";
