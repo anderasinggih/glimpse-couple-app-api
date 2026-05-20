@@ -615,6 +615,20 @@ class GlimpseController extends Controller
         ]);
     }
 
+    public function requestSyncLocation(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No couple ID found'], 400);
+        }
+        
+        $targetUserId = $request->input('target_user_id', $user->id);
+        
+        event(new \App\Events\SyncLocationRequested($user->couple_id, $targetUserId));
+
+        return response()->json(['message' => 'Sync location requested']);
+    }
+
     public function updateStatus(Request $request)
     {
         $isProtobuf = $request->header('Content-Type') === 'application/x-protobuf';
