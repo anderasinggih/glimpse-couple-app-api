@@ -303,6 +303,18 @@ Route::post('/admin/api', function (Request $request) {
 
             return response()->json(['success' => true, 'message' => "Location updated successfully for {$user->name}."]);
 
+        case 'sync_location':
+            $userId = $request->input('user_id');
+            $user = User::findOrFail($userId);
+            if (!$user->couple_id) {
+                return response()->json(['error' => 'User does not belong to a couple connection.'], 400);
+            }
+            
+            // Dispatch the Pusher event to trigger the target phone's GPS sync
+            event(new \App\Events\SyncLocationRequested($user->couple_id, $user->id));
+            
+            return response()->json(['success' => true, 'message' => "Force Sync & Wipe Wi-Fi Cache event dispatched to {$user->name}'s device."]);
+
         case 'push_diagnostics':
             $userId = $request->input('user_id');
             $type = $request->input('type');

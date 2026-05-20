@@ -1507,31 +1507,7 @@
                 alert("Please select a user first!");
                 return;
             }
-            
-            const token = localStorage.getItem('glimpse_admin_token');
-            try {
-                const response = await fetch("/api/glimpse/sync-location", {
-                    method: "POST",
-                    headers: {
-                        "Accept": "application/json",
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}` 
-                    },
-                    body: JSON.stringify({
-                        target_user_id: userId
-                    })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    alert("Berhasil! Sinyal Sync & Clear Cache telah dikirim ke perangkat user tersebut!");
-                } else {
-                    alert("Gagal: " + JSON.stringify(data));
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Network error");
-            }
+            adminApiCall('sync_location', { user_id: userId });
         }
 
         function triggerCustomInject() {
