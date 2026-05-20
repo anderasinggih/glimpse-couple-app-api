@@ -474,6 +474,9 @@
                                     <button onclick="triggerSimulatedUpdate('critical_alert')" class="py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-semibold text-[11px] transition-all">
                                         Critical Alert (1%)
                                     </button>
+                                    <button onclick="forceSyncTargetLocation()" class="py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-400 font-semibold text-[11px] transition-all col-span-2">
+                                        Force Sync & Wipe Wi-Fi Cache
+                                    </button>
                                 </div>
                             </div>
 
@@ -1496,6 +1499,39 @@
                 return;
             }
             adminApiCall('push_diagnostics', { user_id: userId, type: type });
+        }
+        
+        async function forceSyncTargetLocation() {
+            const userId = document.getElementById('simulatorUserSelect').value;
+            if (!userId) {
+                alert("Please select a user first!");
+                return;
+            }
+            
+            const token = localStorage.getItem('glimpse_admin_token');
+            try {
+                const response = await fetch("/api/glimpse/sync-location", {
+                    method: "POST",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({
+                        target_user_id: userId
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert("Berhasil! Sinyal Sync & Clear Cache telah dikirim ke perangkat user tersebut!");
+                } else {
+                    alert("Gagal: " + JSON.stringify(data));
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Network error");
+            }
         }
 
         function triggerCustomInject() {
