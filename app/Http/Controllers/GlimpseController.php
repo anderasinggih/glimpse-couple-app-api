@@ -975,6 +975,31 @@ class GlimpseController extends Controller
         ]);
     }
 
+    public function triggerBump(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active relationship'], 400);
+        }
+
+        $couple = \App\Models\Couple::find($user->couple_id);
+        if ($couple) {
+            $couple->total_meetings = $couple->total_meetings + 1;
+            $couple->save();
+        }
+
+        try {
+            broadcast(new \App\Events\LoveBumpSent($user->couple_id, $user->id, $couple ? $couple->total_meetings : 0))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Bump registered!',
+            'total_meetings' => $couple ? $couple->total_meetings : 0
+        ]);
+    }
+
     public function broadcastTyping(Request $request)
     {
         $request->validate(['is_typing' => 'required|boolean']);
