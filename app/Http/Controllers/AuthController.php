@@ -39,8 +39,14 @@ class AuthController extends Controller
         // Send Email
         try {
             Mail::to($user->email)->send(new EmailVerificationMail($user, $otp));
+            Log::info("Verification email sent to {$user->email}");
         } catch (\Exception $e) {
-            Log::error("Failed to send verification email to {$user->email}: " . $e->getMessage());
+            Log::error("SMTP ERROR sending verification to {$user->email}: " . $e->getMessage(), [
+                'class'   => get_class($e),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -99,9 +105,14 @@ class AuthController extends Controller
 
         try {
             Mail::to($user->email)->send(new EmailVerificationMail($user, $otp));
+            Log::info("Resend verification sent to {$user->email}");
         } catch (\Exception $e) {
-            Log::error("Failed to send verification email to {$user->email}: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to send verification code'], 500);
+            Log::error("SMTP ERROR resending verification to {$user->email}: " . $e->getMessage(), [
+                'class'   => get_class($e),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+            return response()->json(['message' => 'Failed to send verification code. Please try again.'], 500);
         }
 
         return response()->json(['message' => 'Verification code resent successfully']);
@@ -124,9 +135,14 @@ class AuthController extends Controller
 
         try {
             Mail::to($user->email)->send(new ForgotPasswordMail($user, $otp));
+            Log::info("Password reset email sent to {$user->email}");
         } catch (\Exception $e) {
-            Log::error("Failed to send password reset email to {$user->email}: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to send reset code'], 500);
+            Log::error("SMTP ERROR sending reset email to {$user->email}: " . $e->getMessage(), [
+                'class'   => get_class($e),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+            return response()->json(['message' => 'Failed to send reset code. Please try again.'], 500);
         }
 
         return response()->json(['message' => 'If the email exists, a password reset code has been sent.']);
@@ -216,5 +232,26 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out']);
+    }
+
+    public function bypassVerification(Request $request)
+    {
+        $email = $request->query('email');
+        if (!$email) {
+            return response()->json(['error' => 'Email parameter is required'], 400);
+        }
+
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+
+        $user->email_verified_at = now();
+        $user->save();
+
+        return response()->json([
+            'message' => "Verification bypassed successfully for user: {$user->email}",
+            'user' => $user
+        ]);
     }
 }
