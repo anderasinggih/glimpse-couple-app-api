@@ -218,7 +218,7 @@ class GlimpseProtobuf
         return $msg;
     }
 
-    public static function encodeTyping(int $userId, bool $isTyping): string
+    public static function encodeTyping(int $userId, bool $isTyping, ?int $roomId = null): string
     {
         $data = '';
         
@@ -229,6 +229,12 @@ class GlimpseProtobuf
         // Field 2: is_typing (Varint)
         $data .= self::writeTag(2, 0);
         $data .= self::writeVarint($isTyping ? 1 : 0);
+        
+        // Field 3: room_id (Varint)
+        if ($roomId !== null) {
+            $data .= self::writeTag(3, 0);
+            $data .= self::writeVarint($roomId);
+        }
         
         return $data;
     }
@@ -297,6 +303,14 @@ class GlimpseProtobuf
         if ($user->last_seen_message_id !== null) {
             $data .= self::writeTag(9, 0);
             $data .= self::writeVarint((int)$user->last_seen_message_id);
+        }
+        
+        // Field 10: last_active_at (Length-delimited String)
+        if ($user->last_active_at !== null) {
+            $data .= self::writeTag(10, 2);
+            $activeStr = is_string($user->last_active_at) ? $user->last_active_at : $user->last_active_at->toIso8601String();
+            $data .= self::writeVarint(strlen($activeStr));
+            $data .= $activeStr;
         }
         
         return $data;

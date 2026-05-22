@@ -36,6 +36,7 @@ class User extends Authenticatable
         'profile_photo_url',
         'last_seen_message_id',
         'location_history',
+        'last_active_at',
     ];
 
     protected static function boot()

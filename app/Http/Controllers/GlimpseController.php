@@ -146,6 +146,7 @@ class GlimpseController extends Controller
                     'status_note' => $user->status_note,
                     'latest_photo_url' => $latestPhotoUrl,
                     'last_updated' => $user->updated_at->toIso8601String(),
+                    'last_active_at' => $user->last_active_at ? $user->last_active_at->toIso8601String() : null,
                     'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
                     'location_history' => $this->getFilteredHistory($user->location_history),
                 ],
@@ -166,6 +167,7 @@ class GlimpseController extends Controller
                     'status_note' => $partner->status_note,
                     'latest_photo_url' => $partnerLatestPhotoUrl,
                     'last_updated' => $partner->updated_at->toIso8601String(),
+                    'last_active_at' => $partner->last_active_at ? $partner->last_active_at->toIso8601String() : null,
                     'last_seen_message_id' => $partner->last_seen_message_id !== null ? (int)$partner->last_seen_message_id : null,
                     'location_history' => $this->getFilteredHistory($partner->location_history),
                 ] : null,
@@ -1047,7 +1049,10 @@ class GlimpseController extends Controller
 
     public function broadcastTyping(Request $request)
     {
-        $request->validate(['is_typing' => 'required|boolean']);
+        $request->validate([
+            'is_typing' => 'required|boolean',
+            'room_id' => 'nullable|integer'
+        ]);
         $user = $request->user();
         if (!$user->couple_id) {
             return response()->json(['message' => 'No active couple'], 400);
@@ -1055,9 +1060,24 @@ class GlimpseController extends Controller
 
         // Broadcast typing status with 0 database queries
         try {
-            broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing))->toOthers();
+            broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing, $request->room_id))->toOthers();
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function ping(Request $request)
+    {
+        $user = $request->user();
+        $user->last_active_at = now();
+        $user->save();
+
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed in ping: " . $e->getMessage());
         }
 
         return response()->json(['status' => 'ok']);
