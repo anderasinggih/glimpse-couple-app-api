@@ -152,6 +152,7 @@ class GlimpseController extends Controller
                         'id' => (int)$user->id,
                         'name' => $user->name,
                         'email' => $user->email,
+                        'email_verified_at' => $user->email_verified_at ? (\Carbon\Carbon::parse($user->email_verified_at)->toIso8601String()) : null,
                         'invite_code' => $user->invite_code,
                         'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
                         'born_date' => $user->born_date,
@@ -174,6 +175,7 @@ class GlimpseController extends Controller
                         'id' => (int)$partner->id,
                         'name' => $partner->name,
                         'email' => $partner->email,
+                        'email_verified_at' => $partner->email_verified_at ? (\Carbon\Carbon::parse($partner->email_verified_at)->toIso8601String()) : null,
                         'profile_photo_url' => $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name),
                         'born_date' => $partner->born_date,
                         'gender' => $partner->gender,
@@ -966,7 +968,7 @@ class GlimpseController extends Controller
         $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) + cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
         $distance = $angle * $earthRadius;
 
-        $isTogether = ($distance <= 100); // 100 meters threshold
+        $isTogether = ($distance <= 250); // 250 meters threshold for GPS drift stability
 
         if ($isTogether) {
             $couple = \App\Models\Couple::find($user->couple_id);
@@ -1608,6 +1610,24 @@ class GlimpseController extends Controller
             return response()->json(['message' => 'Room not found'], 404);
         }
 
+        // Fetch all audio messages in this room to delete their files from storage
+        $audioMessages = \App\Models\Message::where('couple_id', $user->couple_id)
+            ->where(function($q) use ($id, $room) {
+                $q->where('room_id', $id);
+                if ($room->is_main) {
+                    $q->orWhereNull('room_id');
+                }
+            })
+            ->where('is_audio', true)
+            ->whereNotNull('audio_path')
+            ->get();
+
+        foreach ($audioMessages as $msg) {
+            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($msg->audio_path)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($msg->audio_path);
+            }
+        }
+
         // Delete all messages in this room
         \App\Models\Message::where('room_id', $id)
             ->where('couple_id', $user->couple_id)
@@ -1704,6 +1724,22 @@ class GlimpseController extends Controller
         }
 
         if ($room->is_main) {
+            // Delete all audio files from storage first
+            $audioMessages = \App\Models\Message::where('couple_id', $user->couple_id)
+                ->where(function($q) use ($room) {
+                    $q->where('room_id', $room->id)
+                      ->orWhereNull('room_id');
+                })
+                ->where('is_audio', true)
+                ->whereNotNull('audio_path')
+                ->get();
+
+            foreach ($audioMessages as $msg) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($msg->audio_path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($msg->audio_path);
+                }
+            }
+
             // Delete all messages in this room
             \DB::table('messages')
                 ->where('couple_id', $user->couple_id)
@@ -1727,6 +1763,19 @@ class GlimpseController extends Controller
 
             return response()->json(['status' => 'cleared']);
         } else {
+            // Delete all audio files from storage first for the non-main room
+            $audioMessages = \App\Models\Message::where('couple_id', $user->couple_id)
+                ->where('room_id', $id)
+                ->where('is_audio', true)
+                ->whereNotNull('audio_path')
+                ->get();
+
+            foreach ($audioMessages as $msg) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($msg->audio_path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($msg->audio_path);
+                }
+            }
+
             \DB::table('chat_rooms')->where('id', $id)->delete();
 
             try {
@@ -1845,6 +1894,15 @@ class GlimpseController extends Controller
 
         $fileContent = \Storage::disk('public')->get($filePath);
         $mimeType = \Storage::disk('public')->mimeType($filePath) ?: 'audio/x-m4a';
+
+        // Delete from server storage disk only if downloaded by the partner (not the sender)
+        if ($user->id !== $msg->sender_id) {
+            \Storage::disk('public')->delete($filePath);
+            $msg->update([
+                'audio_path' => null,
+                'audio_expired' => true
+            ]);
+        }
 
         return response($fileContent)
             ->header('Content-Type', $mimeType)

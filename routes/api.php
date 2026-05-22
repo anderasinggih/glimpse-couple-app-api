@@ -5,9 +5,14 @@ use App\Http\Controllers\AuthController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+    Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+    Route::post('/user/change-password', [AuthController::class, 'changePassword']);
     Route::get('/glimpse/state', [GlimpseController::class, 'getState']);
     Route::post('/glimpse/status', [GlimpseController::class, 'updateStatus']);
     Route::post('/glimpse/sync-location', [GlimpseController::class, 'requestSyncLocation']);
