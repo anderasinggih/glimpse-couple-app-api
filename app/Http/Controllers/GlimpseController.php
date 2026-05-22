@@ -1141,7 +1141,10 @@ class GlimpseController extends Controller
             return response()->json(['message' => 'No active couple'], 400);
         }
 
-        // Broadcast typing status with 0 database queries
+        // Update user's last active timestamp because they are active in the app
+        $user->last_active_at = now();
+        $user->save();
+
         try {
             broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing, $request->room_id))->toOthers();
         } catch (\Exception $e) {
@@ -1845,25 +1848,6 @@ class GlimpseController extends Controller
 
         $fileContent = \Storage::disk('public')->get($filePath);
         $mimeType = \Storage::disk('public')->mimeType($filePath) ?: 'audio/x-m4a';
-
-        // Only expire (delete from server + mark expired) when the PARTNER (receiver) downloads it.
-        // The sender can re-download their own audio freely without triggering expiry,
-        // since they may not have a local cache (e.g. after app reinstall).
-        $isPartner = ($msg->sender_id !== $user->id);
-
-        if ($isPartner) {
-            \Storage::disk('public')->delete($filePath);
-            $msg->update([
-                'audio_expired' => true,
-                'audio_path' => null
-            ]);
-
-            try {
-                broadcast(new \App\Events\MessageSent($msg))->toOthers();
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
-            }
-        }
 
         return response($fileContent)
             ->header('Content-Type', $mimeType)
