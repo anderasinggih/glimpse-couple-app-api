@@ -290,6 +290,14 @@ class GlimpseController extends Controller
             if ($couple && $couple->is_active == 0) {
                 $couple->update(['is_active' => 1]);
                 $this->clearGlimpseCache($user->id);
+
+                // Broadcast to notify the inviter that their request was accepted
+                try {
+                    broadcast(new \App\Events\CoupleStatusChanged($user->couple_id, null, true));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("Accept connect broadcast failed: " . $e->getMessage());
+                }
+
                 return response()->json(['message' => 'Connected successfully!']);
             }
         }
