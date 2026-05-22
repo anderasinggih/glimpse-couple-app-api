@@ -836,6 +836,9 @@ Route::post('/admin/api', function (Request $request) {
 
             $artisanOutput = '';
             try {
+                if (!\Illuminate\Support\Facades\Artisan::has('octane:status')) {
+                    \Illuminate\Support\Facades\Artisan::registerCommand(new \Laravel\Octane\Commands\StatusCommand());
+                }
                 \Illuminate\Support\Facades\Artisan::call('octane:status');
                 $artisanOutput = \Illuminate\Support\Facades\Artisan::output();
             } catch (\Exception $e) {
@@ -853,6 +856,9 @@ Route::post('/admin/api', function (Request $request) {
             
         case 'octane_reload':
             try {
+                if (!\Illuminate\Support\Facades\Artisan::has('octane:reload')) {
+                    \Illuminate\Support\Facades\Artisan::registerCommand(new \Laravel\Octane\Commands\ReloadCommand());
+                }
                 \Illuminate\Support\Facades\Artisan::call('octane:reload');
                 $artisanOutput = \Illuminate\Support\Facades\Artisan::output();
                 return response()->json([
