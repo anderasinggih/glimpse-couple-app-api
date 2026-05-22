@@ -236,6 +236,23 @@ class AuthController extends Controller
 
     public function bypassVerification(Request $request)
     {
+        // Require admin token
+        $token = trim($request->header('X-Admin-Token') ?: $request->query('token') ?: '');
+        $adminToken = trim(config('app.admin_token') ?: (env('ADMIN_TOKEN') ?: ''));
+        if (empty($token) || $token !== $adminToken) {
+            // Also check hashed token in DB
+            $authorized = false;
+            try {
+                $record = \Illuminate\Support\Facades\DB::table('admin_tokens')->first();
+                if ($record && password_verify($token, $record->token_hash)) {
+                    $authorized = true;
+                }
+            } catch (\Exception $e) {}
+            if (!$authorized) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+        }
+
         $email = $request->query('email');
         if (!$email) {
             return response()->json(['error' => 'Email parameter is required'], 400);
@@ -248,6 +265,8 @@ class AuthController extends Controller
 
         $user->email_verified_at = now();
         $user->save();
+
+        Log::info("Admin bypassed email verification for: {$user->email}");
 
         return response()->json([
             'message' => "Verification bypassed successfully for user: {$user->email}",

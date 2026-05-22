@@ -1301,6 +1301,10 @@
                             <span class="block font-bold text-white">${u.name}</span>
                             <span class="block text-[10px] text-white/50">${u.email}</span>
                             <span class="block text-[9px] mt-0.5">${coupleStatus}</span>
+                            ${u.email_verified_at
+                                ? `<span class="inline-flex items-center space-x-1 mt-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[9px] font-bold"><span>✓</span><span>Email Verified</span></span>`
+                                : `<span class="inline-flex items-center space-x-1 mt-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/25 text-amber-400 text-[9px] font-bold"><span>⚠</span><span>Unverified</span></span>`
+                            }
                         </div>
                     </td>
                     <td class="p-4 font-mono text-[10px] text-white/80 select-all">${u.invite_code || 'None'}</td>
@@ -1315,9 +1319,13 @@
                         <span class="block text-[9px] font-mono text-white/40 mt-0.5">Lat: ${lat} | Lon: ${lon}</span>
                     </td>
                     <td class="p-4 text-right">
-                        <div class="inline-flex space-x-2">
+                        <div class="inline-flex flex-wrap gap-1.5 justify-end">
                             <button onclick="openLocationModal(${u.id}, ${u.latitude || -6.200000}, ${u.longitude || 106.816666}, '${u.location_name || ''}')" class="px-2.5 py-1.5 rounded-lg bg-electricPurple/10 hover:bg-electricPurple/20 border border-electricPurple/20 text-electricPurple text-[10px] font-semibold transition-all">Location</button>
                             <button onclick="openBatteryModal(${u.id}, ${u.battery_level || 100})" class="px-2.5 py-1.5 rounded-lg bg-activeCyan/10 hover:bg-activeCyan/20 border border-activeCyan/20 text-activeCyan text-[10px] font-semibold transition-all">Battery</button>
+                            ${!u.email_verified_at
+                                ? `<button onclick="bypassVerification('${u.email}', this)" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold transition-all">Verify ✓</button>`
+                                : `<span class="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/25 text-[10px] font-semibold cursor-default">Verified</span>`
+                            }
                             <button onclick="deleteUser(${u.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 text-rose-400 text-[10px] font-semibold transition-all">Delete</button>
                         </div>
                     </td>
@@ -1330,6 +1338,37 @@
             const query = document.getElementById('userSearch').value.toLowerCase();
             const filtered = appData.users.filter(u => u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query));
             renderUsersTable(filtered);
+        }
+
+        async function bypassVerification(email, btn) {
+            if (!confirm(`Force-verify email for: ${email}?`)) return;
+            const orig = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+            try {
+                const res = await fetch(`/api/verify-email/bypass?email=${encodeURIComponent(email)}`, {
+                    headers: { 'X-Admin-Token': adminToken }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    btn.textContent = '✓ Done';
+                    btn.className = btn.className.replace('emerald', 'white').replace('hover:bg-emerald-500', '');
+                    btn.disabled = true;
+                    // Update local data and re-render
+                    const user = appData.users.find(u => u.email === email);
+                    if (user) user.email_verified_at = new Date().toISOString();
+                    filterUsers();
+                    showToast(`Email verified for ${email}`, 'success');
+                } else {
+                    btn.textContent = orig;
+                    btn.disabled = false;
+                    showToast(data.error || 'Bypass failed', 'error');
+                }
+            } catch (e) {
+                btn.textContent = orig;
+                btn.disabled = false;
+                showToast('Network error', 'error');
+            }
         }
 
         function renderCouplesGrid(couples) {
