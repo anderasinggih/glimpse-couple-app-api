@@ -8,21 +8,19 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class LoveBumpSent implements ShouldBroadcast
+class CoupleStatusChanged implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $coupleId;
-    public $senderId;
-    public $totalMeetings;
-    public $dailyBumps;
+    public $disconnectRequestedBy;
+    public $coupleActive;
 
-    public function __construct($coupleId, $senderId, $totalMeetings, $dailyBumps = 1)
+    public function __construct($coupleId, $disconnectRequestedBy, $coupleActive = true)
     {
         $this->coupleId = $coupleId;
-        $this->senderId = $senderId;
-        $this->totalMeetings = $totalMeetings;
-        $this->dailyBumps = $dailyBumps;
+        $this->disconnectRequestedBy = $disconnectRequestedBy;
+        $this->coupleActive = $coupleActive;
     }
 
     public function broadcastOn(): array
@@ -35,10 +33,9 @@ class LoveBumpSent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'sender_id' => (int)$this->senderId,
-            'total_meetings' => (int)$this->totalMeetings,
-            'daily_bumps' => (int)$this->dailyBumps,
-            'timestamp' => microtime(true)
+            'couple_id' => (int)$this->coupleId,
+            'disconnect_requested_by' => $this->disconnectRequestedBy !== null ? (int)$this->disconnectRequestedBy : null,
+            'couple_active' => (bool)$this->coupleActive
         ];
     }
 }

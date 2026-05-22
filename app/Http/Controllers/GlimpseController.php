@@ -178,6 +178,7 @@ class GlimpseController extends Controller
                 'together_streak' => (int)$togetherStreak,
                 'highest_together_streak' => $couple ? (int)$couple->highest_together_streak : 0,
                 'total_meetings' => (int)$totalMeetings,
+                'daily_bumps' => $couple ? (int)\Cache::get("couple_{$couple->id}_bumps_on_" . now()->toDateString(), 0) : 0,
                 'love_burst_timestamp' => $loveBurstTimestamp,
                 'active_schedule' => $this->formatSchedule($activeSchedule),
                 'pending_invitation' => $this->formatSchedule($pendingInvitation),
@@ -314,6 +315,11 @@ class GlimpseController extends Controller
             if ($couple) {
                 $couple->update(['disconnect_requested_by' => $user->id]);
                 $this->clearGlimpseCache($user->id);
+                try {
+                    broadcast(new \App\Events\CoupleStatusChanged($user->couple_id, $user->id, true))->toOthers();
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("Disconnect broadcast failed: " . $e->getMessage());
+                }
             }
         }
         return response()->json(['message' => 'Disconnect request sent']);
@@ -324,6 +330,11 @@ class GlimpseController extends Controller
         $user = $request->user();
         if ($user->couple_id) {
             $coupleId = $user->couple_id;
+            try {
+                broadcast(new \App\Events\CoupleStatusChanged($coupleId, null, false))->toOthers();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Approve disconnect broadcast failed: " . $e->getMessage());
+            }
             \App\Models\User::where('couple_id', $coupleId)->update(['couple_id' => null]);
             \App\Models\Couple::where('id', $coupleId)->delete();
             $this->clearGlimpseCache($user->id);
@@ -339,6 +350,11 @@ class GlimpseController extends Controller
             if ($couple) {
                 $couple->update(['disconnect_requested_by' => null]);
                 $this->clearGlimpseCache($user->id);
+                try {
+                    broadcast(new \App\Events\CoupleStatusChanged($user->couple_id, null, true))->toOthers();
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("Cancel disconnect broadcast failed: " . $e->getMessage());
+                }
             }
         }
         return response()->json(['message' => 'Disconnect request cancelled']);
@@ -984,20 +1000,49 @@ class GlimpseController extends Controller
 
         $couple = \App\Models\Couple::find($user->couple_id);
         if ($couple) {
-            $couple->total_meetings = $couple->total_meetings + 1;
-            $couple->save();
+            $today = now()->toDateString();
+            $yesterday = now()->subDay()->toDateString();
+
+            // Track daily bump count in cache
+            $cacheKey = "couple_{$couple->id}_bumps_on_{$today}";
+            $dailyBumps = (int)\Cache::get($cacheKey, 0);
+            $dailyBumps++;
+            \Cache::put($cacheKey, $dailyBumps, 86400); // 1 day TTL
+
+            if ($couple->last_meeting_date !== $today) {
+                // First bump/meetup of the day!
+                if ($couple->last_meeting_date === $yesterday) {
+                    $couple->together_streak += 1;
+                } else {
+                    $couple->together_streak = 1;
+                }
+                
+                if ($couple->together_streak > $couple->highest_together_streak) {
+                    $couple->highest_together_streak = $couple->together_streak;
+                }
+                
+                $couple->total_meetings += 1;
+                $couple->last_meeting_date = $today;
+                $couple->save();
+            }
+
+            $this->clearGlimpseCache($user->id);
+
+            // Broadcast bump count and total meetings
+            try {
+                broadcast(new \App\Events\LoveBumpSent($user->couple_id, $user->id, (int)$couple->total_meetings, $dailyBumps))->toOthers();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+            }
+
+            return response()->json([
+                'message' => 'Bump registered!',
+                'total_meetings' => (int)$couple->total_meetings,
+                'daily_bumps' => $dailyBumps
+            ]);
         }
 
-        try {
-            broadcast(new \App\Events\LoveBumpSent($user->couple_id, $user->id, $couple ? $couple->total_meetings : 0))->toOthers();
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
-        }
-
-        return response()->json([
-            'message' => 'Bump registered!',
-            'total_meetings' => $couple ? $couple->total_meetings : 0
-        ]);
+        return response()->json(['message' => 'Couple not found'], 404);
     }
 
     public function broadcastTyping(Request $request)
