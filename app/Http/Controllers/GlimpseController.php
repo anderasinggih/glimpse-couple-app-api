@@ -1106,11 +1106,9 @@ class GlimpseController extends Controller
         \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$userId}");
         $user = \App\Models\User::find($userId);
         if ($user && $user->couple_id) {
-            $partner = \App\Models\User::where('couple_id', $user->couple_id)
-                ->where('id', '!=', $userId)
-                ->first();
-            if ($partner) {
-                \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$partner->id}");
+            $users = \App\Models\User::where('couple_id', $user->couple_id)->get();
+            foreach ($users as $u) {
+                \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$u->id}");
             }
         }
     }
