@@ -69,6 +69,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'location_history' => 'array',
             'is_charging' => 'boolean',
+            'last_active_at' => 'datetime',
         ];
     }
 }

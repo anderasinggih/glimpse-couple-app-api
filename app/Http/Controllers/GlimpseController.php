@@ -11,194 +11,211 @@ class GlimpseController extends Controller
     public function getState(Request $request)
     {
         $user = $request->user();
-        $cacheKey = "glimpse_state_user_{$user->id}";
+        \Illuminate\Support\Facades\Log::info("getState: Request received for user {$user->id}");
 
-        // Allow clients to force a fresh read (e.g. after profile/anniversary update)
-        if ($request->boolean('fresh')) {
-            \Illuminate\Support\Facades\Cache::forget($cacheKey);
-        }
+        try {
+            $cacheKey = "glimpse_state_user_{$user->id}";
 
-        $responseData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function() use ($user) {
-            // Find partner if in a couple
-            $partner = null;
-            $couple = null;
-            if ($user->couple_id) {
-                $couple = \App\Models\Couple::find($user->couple_id);
-                
-                // Self-healing: if couple record doesn't exist, reset the ghost reference
-                if (!$couple) {
-                    $user->update(['couple_id' => null]);
-                    $user->refresh();
+            // Allow clients to force a fresh read (e.g. after profile/anniversary update)
+            if ($request->boolean('fresh')) {
+                \Illuminate\Support\Facades\Cache::forget($cacheKey);
+                \Illuminate\Support\Facades\Log::info("getState: Cleared cache key {$cacheKey} (forced fresh request)");
+            }
+
+            $responseData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function() use ($user) {
+                \Illuminate\Support\Facades\Log::info("getState: Cache miss for user {$user->id}. Building state.");
+                // Find partner if in a couple
+                $partner = null;
+                $couple = null;
+                if ($user->couple_id) {
+                    $couple = \App\Models\Couple::find($user->couple_id);
+                    
+                    // Self-healing: if couple record doesn't exist, reset the ghost reference
+                    if (!$couple) {
+                        \Illuminate\Support\Facades\Log::warning("getState: Ghost couple reference detected for user {$user->id}. Resetting couple_id.");
+                        $user->update(['couple_id' => null]);
+                        $user->refresh();
+                    } else {
+                        $partner = \App\Models\User::where('couple_id', $user->couple_id)
+                            ->where('id', '!=', $user->id)
+                            ->first();
+                        \Illuminate\Support\Facades\Log::info("getState: User {$user->id} belongs to couple {$user->couple_id}. Partner ID: " . ($partner ? $partner->id : 'none'));
+                    }
                 } else {
-                    $partner = \App\Models\User::where('couple_id', $user->couple_id)
-                        ->where('id', '!=', $user->id)
-                        ->first();
-                }
-            }
-
-            // Apply temp coordinates from cache if available to prevent database lag reads
-            if ($tempUserCoord = \Cache::get("user_{$user->id}_temp_coordinate")) {
-                if (isset($tempUserCoord['latitude'])) $user->latitude = $tempUserCoord['latitude'];
-                if (isset($tempUserCoord['longitude'])) $user->longitude = $tempUserCoord['longitude'];
-                if (isset($tempUserCoord['location_name'])) $user->location_name = $tempUserCoord['location_name'];
-                if (isset($tempUserCoord['battery_level'])) $user->battery_level = $tempUserCoord['battery_level'];
-                if (isset($tempUserCoord['is_charging'])) $user->is_charging = $tempUserCoord['is_charging'];
-                if (isset($tempUserCoord['status_note'])) $user->status_note = $tempUserCoord['status_note'];
-            }
-            if ($partner && ($tempPartnerCoord = \Cache::get("user_{$partner->id}_temp_coordinate"))) {
-                if (isset($tempPartnerCoord['latitude'])) $partner->latitude = $tempPartnerCoord['latitude'];
-                if (isset($tempPartnerCoord['longitude'])) $partner->longitude = $tempPartnerCoord['longitude'];
-                if (isset($tempPartnerCoord['location_name'])) $partner->location_name = $tempPartnerCoord['location_name'];
-                if (isset($tempPartnerCoord['battery_level'])) $partner->battery_level = $tempPartnerCoord['battery_level'];
-                if (isset($tempPartnerCoord['is_charging'])) $partner->is_charging = $tempPartnerCoord['is_charging'];
-                if (isset($tempPartnerCoord['status_note'])) $partner->status_note = $tempPartnerCoord['status_note'];
-            }
-
-            $photoUrl = $user->profile_photo_url;
-            if ($photoUrl && !str_starts_with($photoUrl, 'http')) {
-                $photoUrl = url($photoUrl);
-            }
-
-            $latestPhotoUrl = $user->latest_photo_url;
-            if ($latestPhotoUrl && !str_starts_with($latestPhotoUrl, 'http')) {
-                $latestPhotoUrl = url($latestPhotoUrl);
-            }
-
-            $partnerLatestPhotoUrl = null;
-            if ($partner) {
-                $partnerPhotoUrl = $partner->profile_photo_url;
-                if ($partnerPhotoUrl && !str_starts_with($partnerPhotoUrl, 'http')) {
-                    $partnerPhotoUrl = url($partnerPhotoUrl);
-                }
-                $partnerLatestPhotoUrl = $partner->latest_photo_url;
-                if ($partnerLatestPhotoUrl && !str_starts_with($partnerLatestPhotoUrl, 'http')) {
-                    $partnerLatestPhotoUrl = url($partnerLatestPhotoUrl);
-                }
-                $partnerData = $partner->toArray();
-                $partnerData['profile_photo_url'] = $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name);
-            }
-
-            $togetherStreak = 0;
-            $totalMeetings = 0;
-            $isTogether = false;
-
-            if ($couple) {
-                $today = now()->toDateString();
-                $yesterday = now()->subDay()->toDateString();
-
-                // Reset streak if last meeting was before yesterday and not today
-                if ($couple->last_meeting_date && $couple->last_meeting_date !== $today && $couple->last_meeting_date !== $yesterday) {
-                    $couple->together_streak = 0;
-                    $couple->save();
+                    \Illuminate\Support\Facades\Log::info("getState: User {$user->id} is not in a couple.");
                 }
 
-                $togetherStreak = $couple->together_streak;
-                $totalMeetings = $couple->total_meetings;
+                // Apply temp coordinates from cache if available to prevent database lag reads
+                if ($tempUserCoord = \Cache::get("user_{$user->id}_temp_coordinate")) {
+                    if (isset($tempUserCoord['latitude'])) $user->latitude = $tempUserCoord['latitude'];
+                    if (isset($tempUserCoord['longitude'])) $user->longitude = $tempUserCoord['longitude'];
+                    if (isset($tempUserCoord['location_name'])) $user->location_name = $tempUserCoord['location_name'];
+                    if (isset($tempUserCoord['battery_level'])) $user->battery_level = $tempUserCoord['battery_level'];
+                    if (isset($tempUserCoord['is_charging'])) $user->is_charging = $tempUserCoord['is_charging'];
+                    if (isset($tempUserCoord['status_note'])) $user->status_note = $tempUserCoord['status_note'];
+                }
+                if ($partner && ($tempPartnerCoord = \Cache::get("user_{$partner->id}_temp_coordinate"))) {
+                    if (isset($tempPartnerCoord['latitude'])) $partner->latitude = $tempPartnerCoord['latitude'];
+                    if (isset($tempPartnerCoord['longitude'])) $partner->longitude = $tempPartnerCoord['longitude'];
+                    if (isset($tempPartnerCoord['location_name'])) $partner->location_name = $tempPartnerCoord['location_name'];
+                    if (isset($tempPartnerCoord['battery_level'])) $partner->battery_level = $tempPartnerCoord['battery_level'];
+                    if (isset($tempPartnerCoord['is_charging'])) $partner->is_charging = $tempPartnerCoord['is_charging'];
+                    if (isset($tempPartnerCoord['status_note'])) $partner->status_note = $tempPartnerCoord['status_note'];
+                }
 
+                $photoUrl = $user->profile_photo_url;
+                if ($photoUrl && !str_starts_with($photoUrl, 'http')) {
+                    $photoUrl = url($photoUrl);
+                }
+
+                $latestPhotoUrl = $user->latest_photo_url;
+                if ($latestPhotoUrl && !str_starts_with($latestPhotoUrl, 'http')) {
+                    $latestPhotoUrl = url($latestPhotoUrl);
+                }
+
+                $partnerLatestPhotoUrl = null;
                 if ($partner) {
-                    $isTogether = $this->checkAndRecordMeeting($user, $partner);
-                    $couple->refresh();
+                    $partnerPhotoUrl = $partner->profile_photo_url;
+                    if ($partnerPhotoUrl && !str_starts_with($partnerPhotoUrl, 'http')) {
+                        $partnerPhotoUrl = url($partnerPhotoUrl);
+                    }
+                    $partnerLatestPhotoUrl = $partner->latest_photo_url;
+                    if ($partnerLatestPhotoUrl && !str_starts_with($partnerLatestPhotoUrl, 'http')) {
+                        $partnerLatestPhotoUrl = url($partnerLatestPhotoUrl);
+                    }
+                    $partnerData = $partner->toArray();
+                    $partnerData['profile_photo_url'] = $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name);
+                }
+
+                $togetherStreak = 0;
+                $totalMeetings = 0;
+                $isTogether = false;
+
+                if ($couple) {
+                    $today = now()->toDateString();
+                    $yesterday = now()->subDay()->toDateString();
+
+                    // Reset streak if last meeting was before yesterday and not today
+                    if ($couple->last_meeting_date && $couple->last_meeting_date !== $today && $couple->last_meeting_date !== $yesterday) {
+                        $couple->together_streak = 0;
+                        $couple->save();
+                    }
+
                     $togetherStreak = $couple->together_streak;
                     $totalMeetings = $couple->total_meetings;
+
+                    if ($partner) {
+                        $isTogether = $this->checkAndRecordMeeting($user, $partner);
+                        $couple->refresh();
+                        $togetherStreak = $couple->together_streak;
+                        $totalMeetings = $couple->total_meetings;
+                    }
                 }
-            }
 
-            $loveBurstInfo = \Illuminate\Support\Facades\Cache::get("couple_{$user->couple_id}_love_burst");
-            $loveBurstTimestamp = 0.0;
-            if ($loveBurstInfo && $loveBurstInfo['sender_id'] !== $user->id) {
-                $loveBurstTimestamp = (double)$loveBurstInfo['timestamp'];
-            }
+                $loveBurstInfo = \Illuminate\Support\Facades\Cache::get("couple_{$user->couple_id}_love_burst");
+                $loveBurstTimestamp = 0.0;
+                if ($loveBurstInfo && $loveBurstInfo['sender_id'] !== $user->id) {
+                    $loveBurstTimestamp = (double)$loveBurstInfo['timestamp'];
+                }
 
-            $activeSchedule = null;
-            $pendingInvitation = null;
-            if ($user->couple_id) {
-                // Get the closest accepted upcoming schedule
-                $activeSchedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
-                    ->where('scheduled_at', '>=', now())
-                    ->where('status', 'accepted')
-                    ->orderBy('scheduled_at', 'asc')
-                    ->first();
-                
-                // Get the closest pending invitation from the partner
-                $pendingInvitation = \App\Models\Schedule::where('couple_id', $user->couple_id)
-                    ->where('scheduled_at', '>=', now())
-                    ->where('status', 'pending')
-                    ->where('creator_id', '!=', $user->id)
-                    ->orderBy('scheduled_at', 'asc')
-                    ->first();
-
-                // Fallback: if no accepted schedule, show pending schedule created by the user
-                if (!$activeSchedule) {
+                $activeSchedule = null;
+                $pendingInvitation = null;
+                if ($user->couple_id) {
+                    // Get the closest accepted upcoming schedule
                     $activeSchedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
                         ->where('scheduled_at', '>=', now())
-                        ->where('status', 'pending')
-                        ->where('creator_id', $user->id)
+                        ->where('status', 'accepted')
                         ->orderBy('scheduled_at', 'asc')
                         ->first();
+                    
+                    // Get the closest pending invitation from the partner
+                    $pendingInvitation = \App\Models\Schedule::where('couple_id', $user->couple_id)
+                        ->where('scheduled_at', '>=', now())
+                        ->where('status', 'pending')
+                        ->where('creator_id', '!=', $user->id)
+                        ->orderBy('scheduled_at', 'asc')
+                        ->first();
+
+                    // Fallback: if no accepted schedule, show pending schedule created by the user
+                    if (!$activeSchedule) {
+                        $activeSchedule = \App\Models\Schedule::where('couple_id', $user->couple_id)
+                            ->where('scheduled_at', '>=', now())
+                            ->where('status', 'pending')
+                            ->where('creator_id', $user->id)
+                            ->orderBy('scheduled_at', 'asc')
+                            ->first();
+                    }
                 }
-            }
 
-            return [
-                'user' => [
-                    'id' => (int)$user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'invite_code' => $user->invite_code,
-                    'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
-                    'born_date' => $user->born_date,
-                    'gender' => $user->gender,
-                    'couple_id' => $user->couple_id !== null ? (int)$user->couple_id : null,
-                    'latitude' => $user->latitude !== null ? (double)$user->latitude : null,
-                    'longitude' => $user->longitude !== null ? (double)$user->longitude : null,
-                    'location_name' => $user->location_name,
-                    'battery_level' => $user->battery_level !== null ? (int)$user->battery_level : null,
-                    'is_charging' => (bool)$user->is_charging,
-                    'is_sleeping' => (bool)\Cache::get("user_{$user->id}_is_sleeping", false),
-                    'status_note' => $user->status_note,
-                    'latest_photo_url' => $latestPhotoUrl,
-                    'last_updated' => $user->updated_at->toIso8601String(),
-                    'last_active_at' => $user->last_active_at ? $user->last_active_at->toIso8601String() : null,
-                    'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
-                    'location_history' => $this->getFilteredHistory($user->location_history),
-                ],
-                'partner_data' => $partner ? [
-                    'id' => (int)$partner->id,
-                    'name' => $partner->name,
-                    'email' => $partner->email,
-                    'profile_photo_url' => $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name),
-                    'born_date' => $partner->born_date,
-                    'gender' => $partner->gender,
-                    'couple_id' => $partner->couple_id !== null ? (int)$partner->couple_id : null,
-                    'latitude' => $partner->latitude !== null ? (double)$partner->latitude : null,
-                    'longitude' => $partner->longitude !== null ? (double)$partner->longitude : null,
-                    'location_name' => $partner->location_name,
-                    'battery_level' => $partner->battery_level !== null ? (int)$partner->battery_level : null,
-                    'is_charging' => (bool)$partner->is_charging,
-                    'is_sleeping' => (bool)\Cache::get("user_{$partner->id}_is_sleeping", false),
-                    'status_note' => $partner->status_note,
-                    'latest_photo_url' => $partnerLatestPhotoUrl,
-                    'last_updated' => $partner->updated_at->toIso8601String(),
-                    'last_active_at' => $partner->last_active_at ? $partner->last_active_at->toIso8601String() : null,
-                    'last_seen_message_id' => $partner->last_seen_message_id !== null ? (int)$partner->last_seen_message_id : null,
-                    'location_history' => $this->getFilteredHistory($partner->location_history),
-                ] : null,
-                'anniversary_start_date' => $couple ? $couple->anniversary_start_date : null,
-                'paired_at' => $couple && $couple->created_at ? $couple->created_at->toIso8601String() : null,
-                'disconnect_requested_by' => $couple && $couple->disconnect_requested_by !== null ? (int)$couple->disconnect_requested_by : null,
-                'couple_active' => $couple ? (bool) $couple->is_active : false,
-                'invited_by' => $couple && $couple->invited_by !== null ? (int)$couple->invited_by : null,
-                'is_together' => $isTogether,
-                'together_streak' => (int)$togetherStreak,
-                'highest_together_streak' => $couple ? (int)$couple->highest_together_streak : 0,
-                'total_meetings' => (int)$totalMeetings,
-                'daily_bumps' => $couple ? (int)\Cache::get("couple_{$couple->id}_bumps_on_" . now()->toDateString(), 0) : 0,
-                'love_burst_timestamp' => $loveBurstTimestamp,
-                'active_schedule' => $this->formatSchedule($activeSchedule),
-                'pending_invitation' => $this->formatSchedule($pendingInvitation),
-            ];
-        });
+                return [
+                    'user' => [
+                        'id' => (int)$user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'invite_code' => $user->invite_code,
+                        'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
+                        'born_date' => $user->born_date,
+                        'gender' => $user->gender,
+                        'couple_id' => $user->couple_id !== null ? (int)$user->couple_id : null,
+                        'latitude' => $user->latitude !== null ? (double)$user->latitude : null,
+                        'longitude' => $user->longitude !== null ? (double)$user->longitude : null,
+                        'location_name' => $user->location_name,
+                        'battery_level' => $user->battery_level !== null ? (int)$user->battery_level : null,
+                        'is_charging' => (bool)$user->is_charging,
+                        'is_sleeping' => (bool)\Cache::get("user_{$user->id}_is_sleeping", false),
+                        'status_note' => $user->status_note,
+                        'latest_photo_url' => $latestPhotoUrl,
+                        'last_updated' => $user->updated_at->toIso8601String(),
+                        'last_active_at' => $user->last_active_at ? ($user->last_active_at instanceof \Carbon\Carbon ? $user->last_active_at->toIso8601String() : \Carbon\Carbon::parse($user->last_active_at)->toIso8601String()) : null,
+                        'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
+                        'location_history' => $this->getFilteredHistory($user->location_history),
+                    ],
+                    'partner_data' => $partner ? [
+                        'id' => (int)$partner->id,
+                        'name' => $partner->name,
+                        'email' => $partner->email,
+                        'profile_photo_url' => $partnerPhotoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($partner->name),
+                        'born_date' => $partner->born_date,
+                        'gender' => $partner->gender,
+                        'couple_id' => $partner->couple_id !== null ? (int)$partner->couple_id : null,
+                        'latitude' => $partner->latitude !== null ? (double)$partner->latitude : null,
+                        'longitude' => $partner->longitude !== null ? (double)$partner->longitude : null,
+                        'location_name' => $partner->location_name,
+                        'battery_level' => $partner->battery_level !== null ? (int)$partner->battery_level : null,
+                        'is_charging' => (bool)$partner->is_charging,
+                        'is_sleeping' => (bool)\Cache::get("user_{$partner->id}_is_sleeping", false),
+                        'status_note' => $partner->status_note,
+                        'latest_photo_url' => $partnerLatestPhotoUrl,
+                        'last_updated' => $partner->updated_at->toIso8601String(),
+                        'last_active_at' => $partner->last_active_at ? ($partner->last_active_at instanceof \Carbon\Carbon ? $partner->last_active_at->toIso8601String() : \Carbon\Carbon::parse($partner->last_active_at)->toIso8601String()) : null,
+                        'last_seen_message_id' => $partner->last_seen_message_id !== null ? (int)$partner->last_seen_message_id : null,
+                        'location_history' => $this->getFilteredHistory($partner->location_history),
+                    ] : null,
+                    'anniversary_start_date' => $couple ? $couple->anniversary_start_date : null,
+                    'paired_at' => $couple && $couple->created_at ? $couple->created_at->toIso8601String() : null,
+                    'disconnect_requested_by' => $couple && $couple->disconnect_requested_by !== null ? (int)$couple->disconnect_requested_by : null,
+                    'couple_active' => $couple ? (bool) $couple->is_active : false,
+                    'invited_by' => $couple && $couple->invited_by !== null ? (int)$couple->invited_by : null,
+                    'is_together' => $isTogether,
+                    'together_streak' => (int)$togetherStreak,
+                    'highest_together_streak' => $couple ? (int)$couple->highest_together_streak : 0,
+                    'total_meetings' => (int)$totalMeetings,
+                    'daily_bumps' => $couple ? (int)\Cache::get("couple_{$couple->id}_bumps_on_" . now()->toDateString(), 0) : 0,
+                    'love_burst_timestamp' => $loveBurstTimestamp,
+                    'active_schedule' => $this->formatSchedule($activeSchedule),
+                    'pending_invitation' => $this->formatSchedule($pendingInvitation),
+                ];
+            });
 
-        return response()->json($responseData);
+            return response()->json($responseData);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("getState exception for user {$user->id}: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Internal server error in getState',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateProfile(Request $request)
