@@ -1657,4 +1657,129 @@ class GlimpseController extends Controller
             return response()->json(['status' => 'deleted']);
         }
     }
+
+    public function uploadAudio(Request $request)
+    {
+        $request->validate([
+            'audio' => 'required|file|mimes:m4a,mp4,audio/mp4,audio/x-m4a,application/octet-stream|max:5120',
+            'duration' => 'required|numeric',
+            'room_id' => 'nullable|integer'
+        ]);
+
+        $user = $request->user();
+
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $couple = \App\Models\Couple::find($user->couple_id);
+        if (!$couple || $couple->is_active == 0) {
+            return response()->json(['message' => 'Relationship is not active'], 400);
+        }
+
+        $roomId = $request->input('room_id');
+        if (!$roomId) {
+            $mainRoom = \DB::table('chat_rooms')
+                ->where('couple_id', $user->couple_id)
+                ->where('is_main', true)
+                ->first();
+                
+            if (!$mainRoom) {
+                $roomId = \DB::table('chat_rooms')->insertGetId([
+                    'couple_id' => $user->couple_id,
+                    'name' => 'General Chat',
+                    'is_main' => true,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            } else {
+                $roomId = $mainRoom->id;
+            }
+        }
+
+        $path = $request->file('audio')->store('chat_audios', 'public');
+
+        $msg = \App\Models\Message::create([
+            'couple_id' => $user->couple_id,
+            'sender_id' => $user->id,
+            'message' => '🎵 Sent a voice note',
+            'room_id' => $roomId,
+            'is_audio' => true,
+            'audio_path' => $path,
+            'audio_duration' => (double)$request->input('duration'),
+            'audio_expired' => false
+        ]);
+
+        if ($msg->id > $user->last_seen_message_id) {
+            $user->last_seen_message_id = $msg->id;
+        }
+        $map = json_decode($user->last_seen_room_messages ?: '{}', true) ?: [];
+        $map[$roomId ?: 0] = (int)$msg->id;
+        $user->last_seen_room_messages = json_encode($map);
+        $user->save();
+        $this->clearGlimpseCache($user->id);
+
+        try {
+            broadcast(new \App\Events\MessageSent($msg))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        if ($request->header('Accept') === 'application/x-protobuf') {
+            $protobufBinary = \App\Helpers\GlimpseProtobuf::encodeMessage($msg);
+            return response($protobufBinary)->header('Content-Type', 'application/x-protobuf');
+        }
+
+        return response()->json($msg);
+    }
+
+    public function downloadAudio(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $msg = \App\Models\Message::where('id', $id)
+            ->where('couple_id', $user->couple_id)
+            ->first();
+
+        if (!$msg || !$msg->is_audio) {
+            return response()->json(['message' => 'Audio message not found'], 404);
+        }
+
+        if ($msg->audio_expired || !$msg->audio_path) {
+            return response()->json(['message' => 'Voice note has expired'], 410);
+        }
+
+        $filePath = $msg->audio_path;
+
+        if (!\Storage::disk('public')->exists($filePath)) {
+            $msg->update([
+                'audio_expired' => true,
+                'audio_path' => null
+            ]);
+            return response()->json(['message' => 'Audio file missing'], 404);
+        }
+
+        $fileContent = \Storage::disk('public')->get($filePath);
+        $mimeType = \Storage::disk('public')->mimeType($filePath) ?: 'audio/x-m4a';
+
+        \Storage::disk('public')->delete($filePath);
+
+        $msg->update([
+            'audio_expired' => true,
+            'audio_path' => null
+        ]);
+
+        try {
+            broadcast(new \App\Events\MessageSent($msg))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
+        }
+
+        return response($fileContent)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'attachment; filename="voice_whisper_' . $id . '.m4a"');
+    }
 }

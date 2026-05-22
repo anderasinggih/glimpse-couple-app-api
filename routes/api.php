@@ -24,6 +24,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/couple/anniversary', [GlimpseController::class, 'updateRelationship']);
     Route::get('/glimpse/chat', [GlimpseController::class, 'getMessages']);
     Route::post('/glimpse/chat', [GlimpseController::class, 'sendMessage']);
+    Route::post('/glimpse/chat/audio', [GlimpseController::class, 'uploadAudio']);
+    Route::get('/glimpse/chat/audio/{id}', [GlimpseController::class, 'downloadAudio']);
     Route::post('/glimpse/chat/read', [GlimpseController::class, 'markAsRead']);
     Route::post('/glimpse/love-burst', [GlimpseController::class, 'sendLoveBurst']);
     Route::post('/glimpse/bump', [GlimpseController::class, 'triggerBump']);

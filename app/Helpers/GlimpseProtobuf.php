@@ -38,6 +38,32 @@ class GlimpseProtobuf
             $data .= self::writeVarint(strlen($dateStr));
             $data .= $dateStr;
         }
+
+        // Field 6: is_audio (Varint)
+        if (!empty($msg->is_audio)) {
+            $data .= self::writeTag(6, 0);
+            $data .= self::writeVarint($msg->is_audio ? 1 : 0);
+        }
+
+        // Field 7: audio_url (Length-delimited String)
+        if (!empty($msg->audio_path)) {
+            $data .= self::writeTag(7, 2);
+            $audioUrl = url('/api/glimpse/chat/audio/' . $msg->id);
+            $data .= self::writeVarint(strlen($audioUrl));
+            $data .= $audioUrl;
+        }
+
+        // Field 8: audio_duration (Varint)
+        if (!empty($msg->audio_duration)) {
+            $data .= self::writeTag(8, 0);
+            $data .= self::writeVarint((int)round($msg->audio_duration));
+        }
+
+        // Field 9: audio_expired (Varint)
+        if (isset($msg->audio_expired)) {
+            $data .= self::writeTag(9, 0);
+            $data .= self::writeVarint($msg->audio_expired ? 1 : 0);
+        }
         
         return $data;
     }
@@ -182,6 +208,10 @@ class GlimpseProtobuf
             'sender_id' => 0,
             'message' => '',
             'created_at' => null,
+            'is_audio' => false,
+            'audio_url' => null,
+            'audio_duration' => null,
+            'audio_expired' => false,
         ];
         
         while ($pos < $len) {
@@ -208,6 +238,20 @@ class GlimpseProtobuf
                     $strLen = self::readVarint($data, $pos);
                     $msg['created_at'] = substr($data, $pos, $strLen);
                     $pos += $strLen;
+                    break;
+                case 6:
+                    $msg['is_audio'] = self::readVarint($data, $pos) === 1;
+                    break;
+                case 7:
+                    $strLen = self::readVarint($data, $pos);
+                    $msg['audio_url'] = substr($data, $pos, $strLen);
+                    $pos += $strLen;
+                    break;
+                case 8:
+                    $msg['audio_duration'] = (double)self::readVarint($data, $pos);
+                    break;
+                case 9:
+                    $msg['audio_expired'] = self::readVarint($data, $pos) === 1;
                     break;
                 default:
                     self::skipField($data, $pos, $wireType);
