@@ -23,11 +23,17 @@ class GlimpseController extends Controller
             $partner = null;
             $couple = null;
             if ($user->couple_id) {
-                $partner = \App\Models\User::where('couple_id', $user->couple_id)
-                    ->where('id', '!=', $user->id)
-                    ->first();
-                
                 $couple = \App\Models\Couple::find($user->couple_id);
+                
+                // Self-healing: if couple record doesn't exist, reset the ghost reference
+                if (!$couple) {
+                    $user->update(['couple_id' => null]);
+                    $user->refresh();
+                } else {
+                    $partner = \App\Models\User::where('couple_id', $user->couple_id)
+                        ->where('id', '!=', $user->id)
+                        ->first();
+                }
             }
 
             // Apply temp coordinates from cache if available to prevent database lag reads
