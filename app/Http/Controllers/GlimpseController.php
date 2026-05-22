@@ -279,6 +279,10 @@ class GlimpseController extends Controller
         $user->update(['couple_id' => $coupleId]);
         $targetUser->update(['couple_id' => $coupleId]);
 
+        // Evict caches immediately so targetUser sees the invitation without any delay
+        $this->clearGlimpseCache($user->id);
+        $this->clearGlimpseCache($targetUser->id);
+
         return response()->json(['message' => 'Invite sent successfully!', 'couple_id' => $coupleId]);
     }
 
@@ -309,9 +313,12 @@ class GlimpseController extends Controller
         $user = $request->user();
         if ($user->couple_id) {
             $coupleId = $user->couple_id;
+            
+            // CRITICAL: Clear cache BEFORE breaking relationship! Otherwise partner cannot be found!
+            $this->clearGlimpseCache($user->id);
+            
             \App\Models\User::where('couple_id', $coupleId)->update(['couple_id' => null]);
             \App\Models\Couple::where('id', $coupleId)->delete();
-            $this->clearGlimpseCache($user->id);
             return response()->json(['message' => 'Connect request declined']);
         }
         return response()->json(['message' => 'No request found'], 400);
@@ -345,9 +352,12 @@ class GlimpseController extends Controller
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::warning("Approve disconnect broadcast failed: " . $e->getMessage());
             }
+            
+            // CRITICAL: Clear cache BEFORE breaking relationship! Otherwise partner cannot be found!
+            $this->clearGlimpseCache($user->id);
+            
             \App\Models\User::where('couple_id', $coupleId)->update(['couple_id' => null]);
             \App\Models\Couple::where('id', $coupleId)->delete();
-            $this->clearGlimpseCache($user->id);
         }
         return response()->json(['message' => 'Partner disconnected']);
     }
