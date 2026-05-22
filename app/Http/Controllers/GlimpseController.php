@@ -1141,10 +1141,7 @@ class GlimpseController extends Controller
             return response()->json(['message' => 'No active couple'], 400);
         }
 
-        // Update user's last active timestamp because they are active in the app
-        $user->last_active_at = now();
-        $user->save();
-
+        // Update user's last active timestamp because they are active in the app (removed DB writes for performance)
         try {
             broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing, $request->room_id))->toOthers();
         } catch (\Exception $e) {

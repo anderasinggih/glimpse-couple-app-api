@@ -68,3 +68,5 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 php artisan octane:start --server=roadrunner --host=127.0.0.1 --port=8001 --workers=1
 
 php artisan reverb:start
+
+git config --local --unset http.https://github.com/.extraheader
