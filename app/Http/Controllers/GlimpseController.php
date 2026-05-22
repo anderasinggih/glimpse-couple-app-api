@@ -13,6 +13,11 @@ class GlimpseController extends Controller
         $user = $request->user();
         $cacheKey = "glimpse_state_user_{$user->id}";
 
+        // Allow clients to force a fresh read (e.g. after profile/anniversary update)
+        if ($request->boolean('fresh')) {
+            \Illuminate\Support\Facades\Cache::forget($cacheKey);
+        }
+
         $responseData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function() use ($user) {
             // Find partner if in a couple
             $partner = null;
@@ -256,10 +261,26 @@ class GlimpseController extends Controller
         $request->validate(['invite_code' => 'required|string']);
         $user = $request->user();
         
+        // Self-healing: Clear ghost couple references for current user
+        if ($user->couple_id) {
+            if (!\App\Models\Couple::where('id', $user->couple_id)->exists()) {
+                $user->update(['couple_id' => null]);
+                \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$user->id}");
+            }
+        }
+        
         $targetUser = \App\Models\User::where('invite_code', $request->invite_code)->first();
         
         if (!$targetUser) {
             return response()->json(['message' => 'Invalid invite code'], 404);
+        }
+        
+        // Self-healing: Clear ghost couple references for target user
+        if ($targetUser->couple_id) {
+            if (!\App\Models\Couple::where('id', $targetUser->couple_id)->exists()) {
+                $targetUser->update(['couple_id' => null]);
+                \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$targetUser->id}");
+            }
         }
         
         if ($targetUser->id === $user->id) {
@@ -282,6 +303,13 @@ class GlimpseController extends Controller
         // Evict caches immediately so targetUser sees the invitation without any delay
         $this->clearGlimpseCache($user->id);
         $this->clearGlimpseCache($targetUser->id);
+
+        // Broadcast so the target user's app gets the pending invite instantly via WebSocket
+        try {
+            broadcast(new \App\Events\CoupleStatusChanged($coupleId, null, false));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Connect broadcast failed: " . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Invite sent successfully!', 'couple_id' => $coupleId]);
     }
@@ -314,11 +342,25 @@ class GlimpseController extends Controller
         if ($user->couple_id) {
             $coupleId = $user->couple_id;
             
-            // CRITICAL: Clear cache BEFORE breaking relationship! Otherwise partner cannot be found!
-            $this->clearGlimpseCache($user->id);
+            // Find ALL users in this couple BEFORE clearing anything
+            $coupleUsers = \App\Models\User::where('couple_id', $coupleId)->get();
             
+            // Clear cache for ALL couple members
+            foreach ($coupleUsers as $u) {
+                \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$u->id}");
+            }
+            
+            // Now break the relationship
             \App\Models\User::where('couple_id', $coupleId)->update(['couple_id' => null]);
             \App\Models\Couple::where('id', $coupleId)->delete();
+            
+            // Broadcast so partner's app reacts instantly
+            try {
+                broadcast(new \App\Events\CoupleStatusChanged($coupleId, null, false));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Decline connect broadcast failed: " . $e->getMessage());
+            }
+            
             return response()->json(['message' => 'Connect request declined']);
         }
         return response()->json(['message' => 'No request found'], 400);
