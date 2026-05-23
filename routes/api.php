@@ -27,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/glimpse/disconnect/approve', [GlimpseController::class, 'approveDisconnect']);
     Route::post('/glimpse/disconnect/cancel', [GlimpseController::class, 'cancelDisconnect']);
     Route::post('/user/update', [GlimpseController::class, 'updateProfile']);
+    Route::post('/user/update/verify-email', [GlimpseController::class, 'verifyEmailChange']);
+    Route::post('/user/update/resend-email-change', [GlimpseController::class, 'resendEmailChangeVerification']);
     Route::post('/couple/anniversary', [GlimpseController::class, 'updateRelationship']);
     Route::get('/glimpse/chat', [GlimpseController::class, 'getMessages']);
     Route::post('/glimpse/chat', [GlimpseController::class, 'sendMessage']);

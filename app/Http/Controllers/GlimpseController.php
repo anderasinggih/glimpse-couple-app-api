@@ -254,7 +254,6 @@ class GlimpseController extends Controller
         ]);
 
         if ($request->has('name')) $user->name = $request->name;
-        if ($request->has('email')) $user->email = $request->email;
         if ($request->has('born_date')) $user->born_date = $request->born_date;
         if ($request->has('gender')) $user->gender = $request->gender;
         
@@ -266,12 +265,46 @@ class GlimpseController extends Controller
             $user->profile_photo_url = Storage::url($path);
         }
 
+        $emailChangePending = false;
+        if ($request->has('email') && $request->email !== $user->email) {
+            $emailChangePending = true;
+            $newEmail = $request->email;
+            
+            // Generate and cache OTP for new email
+            $otp = sprintf("%06d", mt_rand(100000, 999999));
+            \Illuminate\Support\Facades\Cache::put("pending_email_{$user->id}", $newEmail, 900);
+            \Illuminate\Support\Facades\Cache::put("pending_email_otp_{$user->id}", $otp, 900);
+            
+            // Send verification email to the new address
+            try {
+                \Illuminate\Support\Facades\Mail::to($newEmail)->send(new \App\Mail\EmailVerificationMail($user, $otp));
+                \Illuminate\Support\Facades\Log::info("Profile email change verification sent to {$newEmail}");
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("SMTP ERROR sending profile email verification: " . $e->getMessage());
+            }
+        }
+
         $user->save();
         $this->clearGlimpseCache($user->id);
         
         $photoUrl = $user->profile_photo_url;
         if ($photoUrl && !str_starts_with($photoUrl, 'http')) {
             $photoUrl = url($photoUrl);
+        }
+
+        if ($emailChangePending) {
+            return response()->json([
+                'message' => 'Profile updated. Verification code sent to your new email.',
+                'email_change_pending' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email, // keep current email
+                    'born_date' => $user->born_date,
+                    'gender' => $user->gender,
+                    'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
+                ]
+            ]);
         }
 
         return response()->json([
@@ -285,6 +318,72 @@ class GlimpseController extends Controller
                 'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
             ]
         ]);
+    }
+
+    public function verifyEmailChange(Request $request)
+    {
+        $request->validate([
+            'otp' => 'required|string|size:6'
+        ]);
+
+        $user = $request->user();
+        $pendingEmail = \Illuminate\Support\Facades\Cache::get("pending_email_{$user->id}");
+        $cachedOtp = \Illuminate\Support\Facades\Cache::get("pending_email_otp_{$user->id}");
+
+        if (!$pendingEmail || !$cachedOtp) {
+            return response()->json(['message' => 'No pending email change request found or verification code has expired.'], 422);
+        }
+
+        if ($cachedOtp !== $request->otp) {
+            return response()->json(['message' => 'Invalid or expired verification code'], 422);
+        }
+
+        // Save the new email and mark as verified
+        $user->email = $pendingEmail;
+        $user->email_verified_at = now();
+        $user->save();
+
+        // Clear cache
+        \Illuminate\Support\Facades\Cache::forget("pending_email_{$user->id}");
+        \Illuminate\Support\Facades\Cache::forget("pending_email_otp_{$user->id}");
+        $this->clearGlimpseCache($user->id);
+
+        $photoUrl = $user->profile_photo_url;
+        if ($photoUrl && !str_starts_with($photoUrl, 'http')) {
+            $photoUrl = url($photoUrl);
+        }
+
+        return response()->json([
+            'message' => 'Email updated successfully!',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'born_date' => $user->born_date,
+                'gender' => $user->gender,
+                'profile_photo_url' => $photoUrl ?? "https://ui-avatars.com/api/?name=" . urlencode($user->name),
+            ]
+        ]);
+    }
+
+    public function resendEmailChangeVerification(Request $request)
+    {
+        $user = $request->user();
+        $pendingEmail = \Illuminate\Support\Facades\Cache::get("pending_email_{$user->id}");
+
+        if (!$pendingEmail) {
+            return response()->json(['message' => 'No pending email change request found.'], 422);
+        }
+
+        $otp = sprintf("%06d", mt_rand(100000, 999999));
+        \Illuminate\Support\Facades\Cache::put("pending_email_otp_{$user->id}", $otp, 900);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($pendingEmail)->send(new \App\Mail\EmailVerificationMail($user, $otp));
+            return response()->json(['message' => 'Verification code resent successfully to ' . $pendingEmail]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to send verification code. Please try again.'], 500);
+        }
     }
 
     public function updateRelationship(Request $request)
