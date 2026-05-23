@@ -8,7 +8,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #0F0A1A;
+            background-color: #0D001A;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             color: #FFFFFF;
         }
@@ -18,11 +18,11 @@
             padding: 40px 20px;
         }
         .card {
-            background-color: #1C132E;
-            border: 1px solid #9D4EDD;
-            border-radius: 16px;
+            background-color: #150824;
+            border: 1px solid #BF80FF;
+            border-radius: 20px;
             padding: 40px;
-            box-shadow: 0 10px 30px rgba(157, 78, 221, 0.15);
+            box-shadow: 0 10px 30px rgba(191, 128, 255, 0.15);
         }
         .header {
             text-align: center;
@@ -33,11 +33,11 @@
             font-weight: 900;
             letter-spacing: -0.5px;
             color: #FFFFFF;
-            text-shadow: 0 0 15px rgba(157, 78, 221, 0.6);
+            text-shadow: 0 0 15px rgba(191, 128, 255, 0.6);
             margin: 0;
         }
         .logo span {
-            color: #FF4DAD;
+            color: #00FFFF;
         }
         h1 {
             font-size: 24px;
@@ -55,8 +55,8 @@
             margin-bottom: 24px;
         }
         .code-box {
-            background-color: #0F0A1A;
-            border: 2px dashed #9D4EDD;
+            background-color: #0D001A;
+            border: 2px dashed #00FFFF;
             border-radius: 12px;
             padding: 20px;
             text-align: center;
@@ -66,12 +66,13 @@
             font-size: 36px;
             font-weight: 800;
             letter-spacing: 6px;
-            color: #9D4EDD;
+            color: #00FFFF;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
             margin: 0;
         }
         .footer {
             margin-top: 40px;
-            border-top: 1px solid #2D2045;
+            border-top: 1px solid #2D1B4E;
             padding-top: 24px;
             text-align: center;
         }
@@ -82,7 +83,7 @@
             margin: 0;
         }
         .signature strong {
-            color: #FF4DAD;
+            color: #BF80FF;
         }
     </style>
 </head>
@@ -105,10 +106,11 @@
             <div class="footer">
                 <p class="signature">
                     Lovingly crafted for your connection,<br>
-                    <strong>Lovinpeace</strong>
+                    <strong>Glimpse Studio</strong>
                 </p>
             </div>
         </div>
     </div>
 </body>
 </html>
+
