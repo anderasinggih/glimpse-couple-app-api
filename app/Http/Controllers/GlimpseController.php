@@ -147,6 +147,16 @@ class GlimpseController extends Controller
                     }
                 }
 
+                $userLatestFlash = null;
+                if ($user->latest_photo_url) {
+                    $userLatestFlash = \App\Models\Flash::where('sender_id', $user->id)->latest()->first();
+                }
+                
+                $partnerLatestFlash = null;
+                if ($partner && $partner->latest_photo_url) {
+                    $partnerLatestFlash = \App\Models\Flash::where('sender_id', $partner->id)->latest()->first();
+                }
+
                 return [
                     'user' => [
                         'id' => (int)$user->id,
@@ -166,6 +176,12 @@ class GlimpseController extends Controller
                         'is_sleeping' => (bool)\Cache::get("user_{$user->id}_is_sleeping", false),
                         'status_note' => $user->status_note,
                         'latest_photo_url' => $latestPhotoUrl,
+                        'latest_photo_latitude' => $userLatestFlash ? (double)$userLatestFlash->latitude : null,
+                        'latest_photo_longitude' => $userLatestFlash ? (double)$userLatestFlash->longitude : null,
+                        'latest_photo_location_name' => $userLatestFlash ? $userLatestFlash->location_name : null,
+                        'latest_photo_status_note' => $userLatestFlash ? $userLatestFlash->status_note : null,
+                        'latest_photo_battery_level' => $userLatestFlash ? ($userLatestFlash->battery_level !== null ? (int)$userLatestFlash->battery_level : null) : null,
+                        'latest_photo_created_at' => $userLatestFlash && $userLatestFlash->created_at ? $userLatestFlash->created_at->toIso8601String() : null,
                         'last_updated' => $user->updated_at->toIso8601String(),
                         'last_active_at' => $user->last_active_at ? ($user->last_active_at instanceof \Carbon\Carbon ? $user->last_active_at->toIso8601String() : \Carbon\Carbon::parse($user->last_active_at)->toIso8601String()) : null,
                         'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
@@ -188,6 +204,12 @@ class GlimpseController extends Controller
                         'is_sleeping' => (bool)\Cache::get("user_{$partner->id}_is_sleeping", false),
                         'status_note' => $partner->status_note,
                         'latest_photo_url' => $partnerLatestPhotoUrl,
+                        'latest_photo_latitude' => $partnerLatestFlash ? (double)$partnerLatestFlash->latitude : null,
+                        'latest_photo_longitude' => $partnerLatestFlash ? (double)$partnerLatestFlash->longitude : null,
+                        'latest_photo_location_name' => $partnerLatestFlash ? $partnerLatestFlash->location_name : null,
+                        'latest_photo_status_note' => $partnerLatestFlash ? $partnerLatestFlash->status_note : null,
+                        'latest_photo_battery_level' => $partnerLatestFlash ? ($partnerLatestFlash->battery_level !== null ? (int)$partnerLatestFlash->battery_level : null) : null,
+                        'latest_photo_created_at' => $partnerLatestFlash && $partnerLatestFlash->created_at ? $partnerLatestFlash->created_at->toIso8601String() : null,
                         'last_updated' => $partner->updated_at->toIso8601String(),
                         'last_active_at' => $partner->last_active_at ? ($partner->last_active_at instanceof \Carbon\Carbon ? $partner->last_active_at->toIso8601String() : \Carbon\Carbon::parse($partner->last_active_at)->toIso8601String()) : null,
                         'last_seen_message_id' => $partner->last_seen_message_id !== null ? (int)$partner->last_seen_message_id : null,
