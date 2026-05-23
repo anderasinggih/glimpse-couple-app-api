@@ -22,7 +22,7 @@ class GlimpseController extends Controller
                 \Illuminate\Support\Facades\Log::info("getState: Cleared cache key {$cacheKey} (forced fresh request)");
             }
 
-            $responseData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function() use ($user) {
+            $responseData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 5, function() use ($user) {
                 \Illuminate\Support\Facades\Log::info("getState: Cache miss for user {$user->id}. Building state.");
                 // Find partner if in a couple
                 $partner = null;
@@ -917,11 +917,9 @@ class GlimpseController extends Controller
         $lastDbWrite = (int)\Cache::get("user_{$user->id}_last_db_write", 0);
         $currentTime = time();
         $shouldSaveToDb = ($currentTime - $lastDbWrite) >= 10; // Save to DB at most once every 10 seconds
-
         if ($shouldSaveToDb) {
             $user->save();
             \Cache::put("user_{$user->id}_last_db_write", $currentTime, 3600);
-            $this->clearGlimpseCache($user->id);
         } else {
             // If throttling DB, we still save the coordinate in Cache to prevent stale reads
             \Cache::put("user_{$user->id}_temp_coordinate", [
@@ -934,6 +932,9 @@ class GlimpseController extends Controller
                 'updated_at' => now()->toIso8601String()
             ], 60);
         }
+
+        // Always invalidate state caches so clients fetch fresh temp coordinates instantly
+        $this->clearGlimpseCache($user->id);
 
         // Broadcast live state updates to the partner instantly over WebSockets (ALWAYS broadcast!)
         try {
@@ -1896,8 +1897,11 @@ class GlimpseController extends Controller
         $mimeType = \Storage::disk('public')->mimeType($filePath) ?: 'audio/x-m4a';
 
         // Delete from server storage disk only if downloaded by the partner (not the sender)
-        if ($user->id !== $msg->sender_id) {
-            \Storage::disk('public')->delete($filePath);
+        if ((int)$user->id !== (int)$msg->sender_id) {
+            $deleted = \Storage::disk('public')->delete($filePath);
+            if (!$deleted) {
+                \Illuminate\Support\Facades\Log::warning("Failed to delete audio file from public storage: {$filePath}");
+            }
             $msg->update([
                 'audio_path' => null,
                 'audio_expired' => true
