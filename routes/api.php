@@ -14,6 +14,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
     Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
     Route::post('/user/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/user/delete/send-otp', [AuthController::class, 'sendDeleteAccountOtp']);
+    Route::post('/user/delete', [AuthController::class, 'deleteAccount']);
     Route::get('/glimpse/state', [GlimpseController::class, 'getState']);
     Route::post('/glimpse/status', [GlimpseController::class, 'updateStatus']);
     Route::post('/glimpse/sync-location', [GlimpseController::class, 'requestSyncLocation']);

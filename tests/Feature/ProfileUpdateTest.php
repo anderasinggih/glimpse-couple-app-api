@@ -68,4 +68,74 @@ class ProfileUpdateTest extends TestCase
         $couple->refresh();
         $this->assertEquals('2025-05-17 12:00:00', $couple->anniversary_start_date);
     }
+
+    public function test_send_delete_account_otp_success(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $user = User::factory()->create(['email' => 'test@glimpse.test']);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/delete/send-otp');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Verification code sent successfully');
+
+        $this->assertNotNull(\Illuminate\Support\Facades\Cache::get("delete_account_otp_{$user->id}"));
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\DeleteAccountVerificationMail::class);
+    }
+
+    public function test_delete_account_with_password_success(): void
+    {
+        $user = User::factory()->create([
+            'password' => \Illuminate\Support\Facades\Hash::make('secretpassword')
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/delete', [
+            'agreement' => true,
+            'method' => 'password',
+            'password' => 'secretpassword'
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Account deleted successfully');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
+
+    public function test_delete_account_with_otp_success(): void
+    {
+        $user = User::factory()->create();
+        \Illuminate\Support\Facades\Cache::put("delete_account_otp_{$user->id}", '123456', 900);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/delete', [
+            'agreement' => true,
+            'method' => 'email',
+            'otp' => '123456'
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Account deleted successfully');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertNull(\Illuminate\Support\Facades\Cache::get("delete_account_otp_{$user->id}"));
+    }
+
+    public function test_delete_account_validation_error(): void
+    {
+        $user = User::factory()->create();
+
+        // Missing agreement
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/delete', [
+            'method' => 'password',
+            'password' => 'wrongpassword'
+        ]);
+        $response->assertStatus(422);
+
+        // Incorrect password
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/delete', [
+            'agreement' => true,
+            'method' => 'password',
+            'password' => 'wrongpassword'
+        ]);
+        $response->assertStatus(422);
+    }
 }

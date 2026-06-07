@@ -280,4 +280,73 @@ class AuthController extends Controller
             'user' => $user
         ]);
     }
+
+    public function sendDeleteAccountOtp(Request $request)
+    {
+        $user = $request->user();
+        $otp = sprintf("%06d", mt_rand(100000, 999999));
+        Cache::put("delete_account_otp_{$user->id}", $otp, 900); // 15 mins
+
+        try {
+            Mail::to($user->email)->send(new \App\Mail\DeleteAccountVerificationMail($user, $otp));
+            Log::info("Delete account OTP sent to {$user->email}");
+        } catch (\Exception $e) {
+            Log::error("SMTP ERROR sending delete account OTP to {$user->email}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to send verification code. Please try again.'], 500);
+        }
+
+        return response()->json(['message' => 'Verification code sent successfully']);
+    }
+
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'agreement' => 'required|accepted',
+            'method' => 'required|in:password,email',
+            'password' => 'required_if:method,password|string',
+            'otp' => 'required_if:method,email|string',
+        ]);
+
+        if ($request->method === 'password') {
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json(['message' => 'Incorrect password'], 422);
+            }
+        } else {
+            $cachedOtp = Cache::get("delete_account_otp_{$user->id}");
+            if (!$cachedOtp || $cachedOtp !== $request->otp) {
+                return response()->json(['message' => 'Invalid or expired verification code'], 422);
+            }
+            Cache::forget("delete_account_otp_{$user->id}");
+        }
+
+        // Handle partner decoupling if the user is in a relationship
+        if ($user->couple_id) {
+            $coupleId = $user->couple_id;
+            try {
+                // Notify partner
+                broadcast(new \App\Events\CoupleStatusChanged($coupleId, null, false))->toOthers();
+            } catch (\Exception $e) {
+                Log::warning("Delete account disconnect broadcast failed: " . $e->getMessage());
+            }
+
+            // Clear cache for both users in couple
+            $partner = User::where('couple_id', $coupleId)->where('id', '!=', $user->id)->first();
+            if ($partner) {
+                Cache::forget("glimpse_state_{$partner->id}");
+            }
+            Cache::forget("glimpse_state_{$user->id}");
+
+            // Dissolve the couple relationship
+            User::where('couple_id', $coupleId)->update(['couple_id' => null]);
+            \App\Models\Couple::where('id', $coupleId)->delete();
+        }
+
+        // Delete user and tokens
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->json(['message' => 'Account deleted successfully']);
+    }
 }
