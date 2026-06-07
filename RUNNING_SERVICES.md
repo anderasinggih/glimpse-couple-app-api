@@ -38,6 +38,14 @@ Layanan server utama menggunakan Octane + Roadrunner di port 8001.
 4. **Detach dari screen (Keluar tanpa mematikan proses):**
    * Tekan tombol **`Ctrl` + `A`**, lalu lepas dan tekan tombol **`D`**.
 
+untuk reload
+pkill -9 -f rr
+   pkill -9 -f roadrunner
+   
+
+   screen -ls | grep octane-8001 | cut -d. -f1 | awk '{print $1}' | xargs kill
+screen -wipe
+
 ---
 
 ### B. Laravel Queue Worker
@@ -70,6 +78,7 @@ Layanan untuk mengelola koneksi real-time / WebSocket.
    ```bash
    screen -S reverb
    ```
+
 2. **Pindah ke folder project Anda (PENTING!):**
    ```bash
    cd /path/to/your/project-directory

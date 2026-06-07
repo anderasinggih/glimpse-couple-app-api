@@ -233,6 +233,7 @@ Route::post('/admin/api', function (Request $request) {
             $users = User::all();
             $couples = Couple::with('users')->get();
             $messagesCount = Message::count();
+            $bugReports = \App\Models\BugReport::with('user')->latest()->get();
             
             // Format nice couple listings
             $couplesFormatted = $couples->map(function ($couple) {
@@ -253,7 +254,13 @@ Route::post('/admin/api', function (Request $request) {
                 ],
                 'users' => $users,
                 'couples' => $couplesFormatted,
+                'bug_reports' => $bugReports,
             ]);
+
+        case 'delete_bug_report':
+            $reportId = $request->input('report_id');
+            \App\Models\BugReport::where('id', $reportId)->delete();
+            return response()->json(['success' => true, 'message' => 'Bug report deleted successfully!']);
 
         case 'change_admin_token':
             $newToken = trim($request->input('new_token') ?: '');

@@ -89,6 +89,7 @@
                     <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 text-white">Overview</button>
                     <button onclick="switchTab('users')" id="tab-users" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">User Management</button>
                     <button onclick="switchTab('couples')" id="tab-couples" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Couple Pairs</button>
+                    <button onclick="switchTab('bugs')" id="tab-bugs" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Bug Reports</button>
                     <button onclick="switchTab('control')" id="tab-control" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white">Control Center</button>
                     <button onclick="switchTab('diagnostics')" id="tab-diagnostics" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-white/60 hover:text-white flex items-center space-x-1.5">
                         <span>Live Debugger</span>
@@ -113,6 +114,7 @@
             <button onclick="switchTab('overview')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white" id="tab-mob-overview">Overview</button>
             <button onclick="switchTab('users')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-users">Users</button>
             <button onclick="switchTab('couples')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-couples">Couples</button>
+            <button onclick="switchTab('bugs')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-bugs">Bugs</button>
             <button onclick="switchTab('control')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-control">Control</button>
             <button onclick="switchTab('diagnostics')" class="tab-btn-mob px-3 py-1.5 rounded-lg text-xs font-medium text-white/60" id="tab-mob-diagnostics">Debug</button>
         </div>
@@ -431,6 +433,37 @@
                 <!-- Couples Grid -->
                 <div id="couplesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2 p-8 text-center border border-white/10 bg-white/5 rounded-2xl text-white/40">Syncing connected couple pairs...</div>
+                </div>
+            </div>
+
+            <!-- BUG REPORTS TAB -->
+            <div id="content-bugs" class="tab-content space-y-6 hidden">
+                <div>
+                    <h3 class="text-2xl font-bold">Bug & Support Reports</h3>
+                    <p class="text-white/50 text-sm">Review issues reported directly by users from the mobile client.</p>
+                </div>
+
+                <!-- Bug Reports Table -->
+                <div class="border border-white/10 rounded-2xl bg-white/5 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr class="bg-white/5 border-b border-white/10 text-white/60 font-semibold">
+                                    <th class="p-4">User</th>
+                                    <th class="p-4">Title</th>
+                                    <th class="p-4">Description</th>
+                                    <th class="p-4">Device Specs</th>
+                                    <th class="p-4">Submitted At</th>
+                                    <th class="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bugTableBody">
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-white/40">Syncing bug reports...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -1214,6 +1247,7 @@
             // Render tables & grids
             renderUsersTable(data.users);
             renderCouplesGrid(data.couples);
+            renderBugsTable(data.bug_reports);
             
             // Auto-subscribe to all active couples' channels on websocket to monitor broadcasts
             if (data.couples && liveWS && liveWS.readyState === WebSocket.OPEN) {
@@ -1332,6 +1366,67 @@
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function renderBugsTable(bugs) {
+            const tbody = document.getElementById('bugTableBody');
+            tbody.innerHTML = '';
+
+            if (!bugs || bugs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-white/40">No bug reports submitted yet.</td></tr>`;
+                return;
+            }
+
+            bugs.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-white/5 hover:bg-white/5 transition-all text-xs';
+
+                const reporterName = b.user ? b.user.name : 'Unknown User';
+                const reporterEmail = b.user ? b.user.email : '';
+                const createdDate = new Date(b.created_at).toLocaleString();
+
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <span class="block font-bold text-white">${reporterName}</span>
+                        <span class="block text-[10px] text-white/50">${reporterEmail}</span>
+                    </td>
+                    <td class="p-4 font-semibold text-white/80">${b.title}</td>
+                    <td class="p-4 max-w-sm whitespace-pre-wrap text-white/60">${b.description}</td>
+                    <td class="p-4 font-mono text-[10px] text-white/50">${b.device_info || '-'}</td>
+                    <td class="p-4 text-white/40 font-mono text-[10px]">${createdDate}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteBugReport(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 text-rose-400 text-[10px] font-semibold transition-all">Resolve / Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function deleteBugReport(reportId) {
+            if (!confirm("Are you sure you want to resolve/delete this bug report?")) return;
+            const token = localStorage.getItem('glimpse_admin_token');
+            try {
+                const response = await fetch(`/admin/api?token=${encodeURIComponent(token)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Admin-Token': token
+                    },
+                    body: JSON.stringify({ action: 'delete_bug_report', report_id: reportId })
+                });
+
+                if (response.ok) {
+                    showNotification("Bug report resolved successfully!", "success");
+                    fetchData();
+                } else {
+                    const err = await response.json();
+                    showNotification(err.error || "Failed to resolve bug report", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showNotification("Network error occurred", "error");
+            }
         }
 
         function filterUsers() {

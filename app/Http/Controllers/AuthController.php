@@ -349,4 +349,25 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Account deleted successfully']);
     }
+
+    public function reportBug(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'device_info' => 'nullable|string',
+        ]);
+
+        $bugReport = \App\Models\BugReport::create([
+            'user_id' => $request->user()->id,
+            'title' => $request->title,
+            'description' => $request->description,
+            'device_info' => $request->device_info,
+        ]);
+
+        return response()->json([
+            'message' => 'Bug report submitted successfully',
+            'bug_report' => $bugReport,
+        ]);
+    }
 }
