@@ -714,7 +714,7 @@ Route::post('/admin/api', function (Request $request) {
                             'longitude' => (double)$longitude,
                             'timestamp' => (double)microtime(true)
                         ];
-                        $user->location_history = array_slice($history, -50);
+                        $user->location_history = array_slice($history, -2);
                     }
                 } catch (\Exception $historyEx) {
                     // Column missing in this deployment - skip silently

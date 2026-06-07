@@ -45,6 +45,12 @@ class User extends Authenticatable
         static::creating(function ($user) {
             $user->invite_code = strtoupper(bin2hex(random_bytes(4)));
         });
+        static::saving(function ($user) {
+            $cacheKey = "user_{$user->id}_location_history";
+            if (\Cache::has($cacheKey)) {
+                $user->location_history = \Cache::get($cacheKey);
+            }
+        });
     }
 
     /**

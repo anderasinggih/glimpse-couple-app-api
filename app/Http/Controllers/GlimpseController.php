@@ -185,7 +185,7 @@ class GlimpseController extends Controller
                         'last_updated' => $user->updated_at->toIso8601String(),
                         'last_active_at' => $user->last_active_at ? ($user->last_active_at instanceof \Carbon\Carbon ? $user->last_active_at->toIso8601String() : \Carbon\Carbon::parse($user->last_active_at)->toIso8601String()) : null,
                         'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
-                        'location_history' => $this->getFilteredHistory($user->location_history),
+                        'location_history' => $this->getFilteredHistory($this->getUserLocationHistory($user)),
                     ],
                     'partner_data' => $partner ? [
                         'id' => (int)$partner->id,
@@ -213,7 +213,7 @@ class GlimpseController extends Controller
                         'last_updated' => $partner->updated_at->toIso8601String(),
                         'last_active_at' => $partner->last_active_at ? ($partner->last_active_at instanceof \Carbon\Carbon ? $partner->last_active_at->toIso8601String() : \Carbon\Carbon::parse($partner->last_active_at)->toIso8601String()) : null,
                         'last_seen_message_id' => $partner->last_seen_message_id !== null ? (int)$partner->last_seen_message_id : null,
-                        'location_history' => $this->getFilteredHistory($partner->location_history),
+                        'location_history' => $this->getFilteredHistory($this->getUserLocationHistory($partner)),
                     ] : null,
                     'anniversary_start_date' => $couple ? $couple->anniversary_start_date : null,
                     'paired_at' => $couple && $couple->created_at ? $couple->created_at->toIso8601String() : null,
@@ -897,7 +897,7 @@ class GlimpseController extends Controller
             
             // Check if stationary (within ~30 meters of last coordinate in history)
             $isStationary = false;
-            $history = $user->location_history ?? [];
+            $history = $this->getUserLocationHistory($user);
             if (!empty($history)) {
                 $last = end($history);
                 $latDiff = abs($last['latitude'] - $lat);
@@ -1126,11 +1126,22 @@ class GlimpseController extends Controller
         return $isTogether;
     }
 
+    private function getUserLocationHistory($user)
+    {
+        $cacheKey = "user_{$user->id}_location_history";
+        $history = \Cache::get($cacheKey);
+        if ($history === null) {
+            $history = is_array($user->location_history) ? $user->location_history : [];
+            \Cache::put($cacheKey, $history, 10800); // 3 hours cache
+        }
+        return $history;
+    }
+
     private function appendLocationHistory($user, $lat, $lng)
     {
         if ($lat === null || $lng === null) return;
 
-        $history = $user->location_history ?? [];
+        $history = $this->getUserLocationHistory($user);
         
         // Prevent duplicate consecutive updates
         if (!empty($history)) {
@@ -1153,12 +1164,12 @@ class GlimpseController extends Controller
         });
         $history = array_values($history);
 
-        // Keep last 30 coordinates for the footprints trail
-        if (count($history) > 30) {
-            array_shift($history);
+        // Keep last 2 coordinates for the dead-reckoning (speed & heading extrapolation)
+        if (count($history) > 2) {
+            $history = array_slice($history, -2);
         }
 
-        $user->location_history = $history;
+        \Cache::put("user_{$user->id}_location_history", $history, 10800);
     }
 
     private function getFilteredHistory($history)
