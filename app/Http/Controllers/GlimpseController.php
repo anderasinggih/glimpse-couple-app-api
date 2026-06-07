@@ -1208,7 +1208,27 @@ class GlimpseController extends Controller
         }
 
         $couple = \App\Models\Couple::find($user->couple_id);
-        if ($couple) {
+        if (!$couple) {
+            return response()->json(['message' => 'Couple not found'], 404);
+        }
+
+        $partner = \App\Models\User::where('couple_id', $user->couple_id)
+            ->where('id', '!=', $user->id)
+            ->first();
+
+        if (!$partner) {
+            return response()->json(['message' => 'Partner not found'], 404);
+        }
+
+        // Cache handshake keys
+        $partnerShakeKey = "couple_{$couple->id}_shake_by_{$partner->id}";
+        $myShakeKey = "couple_{$couple->id}_shake_by_{$user->id}";
+
+        if (\Cache::has($partnerShakeKey)) {
+            // Both shook at the same time! Register the bump!
+            \Cache::forget($partnerShakeKey);
+            \Cache::forget($myShakeKey);
+
             $today = now()->toDateString();
             $yesterday = now()->subDay()->toDateString();
 
@@ -1245,13 +1265,20 @@ class GlimpseController extends Controller
             }
 
             return response()->json([
+                'status' => 'success',
                 'message' => 'Bump registered!',
                 'total_meetings' => (int)$couple->total_meetings,
                 'daily_bumps' => $dailyBumps
             ]);
-        }
+        } else {
+            // Record current user shake and wait for partner (10 seconds timeout)
+            \Cache::put($myShakeKey, true, 10);
 
-        return response()->json(['message' => 'Couple not found'], 404);
+            return response()->json([
+                'status' => 'waiting',
+                'message' => 'Waiting for partner to shake'
+            ]);
+        }
     }
 
     public function broadcastTyping(Request $request)
