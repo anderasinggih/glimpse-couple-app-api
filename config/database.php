@@ -148,6 +148,10 @@ return [
     'migrations' => [
         'table' => 'migrations',
         'update_date_on_publish' => true,
+        // Force artisan migrate to always use the write (master) connection.
+        // This prevents migrate from trying to read the migrations table from
+        // the read replica (which may be unreachable or empty on first run).
+        'use' => 'pgsql',
     ],
 
     /*
