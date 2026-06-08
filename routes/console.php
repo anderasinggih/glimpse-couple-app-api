@@ -33,3 +33,18 @@ Schedule::call(function () {
         }
     }
 })->hourly();
+
+Schedule::call(function () {
+    $oldFlashes = \App\Models\Flash::where('created_at', '<', now()->subDays(1))->get();
+    foreach ($oldFlashes as $oldFlash) {
+        $photoUrl = $oldFlash->photo_url;
+        if (!empty($photoUrl)) {
+            $path = str_replace('/storage/', 'glimpse_photos/', parse_url($photoUrl, PHP_URL_PATH));
+            $path = ltrim($path, '/');
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+        $oldFlash->delete();
+    }
+})->daily();
