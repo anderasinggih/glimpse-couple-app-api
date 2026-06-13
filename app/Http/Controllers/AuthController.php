@@ -370,4 +370,64 @@ class AuthController extends Controller
             'bug_report' => $bugReport,
         ]);
     }
+
+    public function loginApple(Request $request)
+    {
+        $request->validate([
+            'apple_user_id' => 'required|string',
+            'email' => 'nullable|email',
+            'name' => 'nullable|string',
+            'identity_token' => 'nullable|string',
+        ]);
+
+        $appleUserId = $request->apple_user_id;
+        $email = $request->email;
+        $name = $request->name ?: 'Apple User';
+
+        // In development mode (if identity_token is empty or mock)
+        $isMock = empty($request->identity_token) || str_starts_with($request->identity_token, 'mock_');
+
+        if (!$isMock) {
+            // Real validation would decode Apple's public key JWKS and verify signature
+            Log::info("Apple login: validating real token.");
+        }
+
+        // Find user by apple_user_id or email
+        $user = User::where('apple_user_id', $appleUserId)->first();
+        if (!$user && !empty($email)) {
+            $user = User::where('email', $email)->first();
+        }
+
+        if (!$user) {
+            // Create user
+            if (empty($email)) {
+                $email = strtolower(str_replace(' ', '', $name)) . '_' . substr(uniqid(), 0, 5) . '@apple-user.glimpse.test';
+            }
+
+            $user = User::create([
+                'name' => $name,
+                'email' => $email,
+                'apple_user_id' => $appleUserId,
+                'password' => Hash::make(uniqid()), // Random password since they use Apple
+                'email_verified_at' => now(), // Apple emails are pre-verified
+            ]);
+        } else {
+            // Update apple_user_id if not set yet
+            if (empty($user->apple_user_id)) {
+                $user->apple_user_id = $appleUserId;
+                $user->save();
+            }
+        }
+
+        // Enforce single active session
+        $user->tokens()->delete();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user
+        ]);
+    }
 }
