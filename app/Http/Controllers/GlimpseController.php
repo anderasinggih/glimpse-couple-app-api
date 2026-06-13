@@ -1342,6 +1342,23 @@ class GlimpseController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+    public function goOffline(Request $request)
+    {
+        $user = $request->user();
+        $user->last_active_at = now()->subSeconds(700); // Backdate last_active_at so they appear offline (> 660s threshold)
+        $user->save();
+
+        $this->clearGlimpseCache($user->id);
+
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed in goOffline: " . $e->getMessage());
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
     private function clearGlimpseCache($userId)
     {
         \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$userId}");

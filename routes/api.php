@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/glimpse/bump', [GlimpseController::class, 'triggerBump']);
     Route::post('/glimpse/typing', [GlimpseController::class, 'broadcastTyping']);
     Route::post('/glimpse/ping', [GlimpseController::class, 'ping']);
+    Route::post('/glimpse/offline', [GlimpseController::class, 'goOffline']);
     
     // Schedule Planner routes
     Route::post('/glimpse/schedule', [GlimpseController::class, 'createSchedule']);
