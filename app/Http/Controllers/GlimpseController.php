@@ -13,6 +13,16 @@ class GlimpseController extends Controller
         $user = $request->user();
         \Illuminate\Support\Facades\Log::info("getState: Request received for user {$user->id}");
 
+        $user->last_active_at = now();
+        $user->save();
+        $this->clearGlimpseCache($user->id);
+
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed in getState: " . $e->getMessage());
+        }
+
         try {
             $cacheKey = "glimpse_state_user_{$user->id}";
 
@@ -783,6 +793,7 @@ class GlimpseController extends Controller
         $map = json_decode($user->last_seen_room_messages ?: '{}', true) ?: [];
         $map[$roomId ?: 0] = (int)$msg->id;
         $user->last_seen_room_messages = json_encode($map);
+        $user->last_active_at = now();
         $user->save();
         $this->clearGlimpseCache($user->id);
 
@@ -1303,7 +1314,10 @@ class GlimpseController extends Controller
             return response()->json(['message' => 'No active couple'], 400);
         }
 
-        // Update user's last active timestamp because they are active in the app (removed DB writes for performance)
+        $user->last_active_at = now();
+        $user->save();
+        $this->clearGlimpseCache($user->id);
+
         try {
             broadcast(new \App\Events\PartnerTyping($user->couple_id, $user->id, $request->is_typing, $request->room_id))->toOthers();
         } catch (\Exception $e) {
