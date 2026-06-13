@@ -887,6 +887,15 @@ class GlimpseController extends Controller
 
         $user = $request->user();
         
+        if ($request->has('is_sleeping')) {
+            $isSleeping = filter_var($request->input('is_sleeping'), FILTER_VALIDATE_BOOLEAN);
+            if ($isSleeping) {
+                \Cache::put("user_{$user->id}_is_sleeping", true, 86400);
+            } else {
+                \Cache::forget("user_{$user->id}_is_sleeping");
+            }
+        }
+        
         if (array_key_exists('latitude', $data) && $data['latitude'] !== null) $user->latitude = $data['latitude'];
         if (array_key_exists('longitude', $data) && $data['longitude'] !== null) $user->longitude = $data['longitude'];
         if (array_key_exists('battery_level', $data) && $data['battery_level'] !== null) $user->battery_level = $data['battery_level'];
@@ -986,24 +995,28 @@ class GlimpseController extends Controller
                     
                     // 3. Sleep Detection (ZZZ): 
                     // If at Home, at night (20:00 - 06:00), and stationary for more than 3 hours
-                    if ($hour >= 20 || $hour < 6) {
-                        $homeArrival = \Cache::get("user_{$user->id}_home_arrival_time");
-                        if ($homeArrival === null) {
-                            \Cache::put("user_{$user->id}_home_arrival_time", now()->timestamp, 86400);
-                        } else {
-                            $duration = now()->timestamp - $homeArrival;
-                            if ($duration >= 10800) { // 3 hours
-                                \Cache::put("user_{$user->id}_is_sleeping", true, 86400);
+                    if (!$request->has('is_sleeping')) {
+                        if ($hour >= 20 || $hour < 6) {
+                            $homeArrival = \Cache::get("user_{$user->id}_home_arrival_time");
+                            if ($homeArrival === null) {
+                                \Cache::put("user_{$user->id}_home_arrival_time", now()->timestamp, 86400);
+                            } else {
+                                $duration = now()->timestamp - $homeArrival;
+                                if ($duration >= 10800) { // 3 hours
+                                    \Cache::put("user_{$user->id}_is_sleeping", true, 86400);
+                                }
                             }
+                        } else {
+                            // Reset sleep state during daytime
+                            \Cache::forget("user_{$user->id}_home_arrival_time");
+                            \Cache::forget("user_{$user->id}_is_sleeping");
                         }
-                    } else {
-                        // Reset sleep state during daytime
+                    }
+                } else {
+                    if (!$request->has('is_sleeping')) {
                         \Cache::forget("user_{$user->id}_home_arrival_time");
                         \Cache::forget("user_{$user->id}_is_sleeping");
                     }
-                } else {
-                    \Cache::forget("user_{$user->id}_home_arrival_time");
-                    \Cache::forget("user_{$user->id}_is_sleeping");
                 }
                 
                 // Check Work: 3 consecutive days during 9-17 Mon-Fri
