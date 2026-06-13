@@ -237,7 +237,31 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        
+        // Update presence fields to reflect Logged out state
+        $user->last_active_at = now()->subSeconds(700); // Backdate to show as offline (> 660s threshold)
+        $user->location_name = 'Logged out';
+        $user->activity = 'offline';
+        $user->save();
+
+        // Clear Glimpse State Caches
+        \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$user->id}");
+        if ($user->couple_id) {
+            $partner = \App\Models\User::where('couple_id', $user->couple_id)->where('id', '!=', $user->id)->first();
+            if ($partner) {
+                \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$partner->id}");
+            }
+        }
+
+        // Broadcast to partner instantly
+        try {
+            broadcast(new \App\Events\PartnerStateUpdated($user))->toOthers();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed in logout: " . $e->getMessage());
+        }
+
+        $user->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out']);
     }
 
