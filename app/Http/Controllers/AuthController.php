@@ -425,6 +425,9 @@ class AuthController extends Controller
         // Enforce single active session
         $user->tokens()->delete();
 
+        // Clear Glimpse state cache to ensure fresh verification status is loaded
+        \Illuminate\Support\Facades\Cache::forget("glimpse_state_user_{$user->id}");
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
