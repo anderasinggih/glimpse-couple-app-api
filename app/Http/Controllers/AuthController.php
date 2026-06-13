@@ -415,8 +415,11 @@ class AuthController extends Controller
             // Update apple_user_id if not set yet
             if (empty($user->apple_user_id)) {
                 $user->apple_user_id = $appleUserId;
-                $user->save();
             }
+            if (empty($user->email_verified_at)) {
+                $user->email_verified_at = now();
+            }
+            $user->save();
         }
 
         // Enforce single active session
