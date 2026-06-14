@@ -2155,4 +2155,60 @@ class GlimpseController extends Controller
 
         return response()->json(['message' => 'Flash successfully deleted']);
     }
+
+    public function requestDatabaseSync(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        event(new \App\Events\DatabaseSyncRequested($user->couple_id, $user->id));
+
+        return response()->json(['message' => 'Database sync requested from partner']);
+    }
+
+    public function uploadDatabaseSync(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        if (!$request->hasFile('sync_data')) {
+            return response()->json(['message' => 'No sync data file uploaded'], 400);
+        }
+
+        $file = $request->file('sync_data');
+        $filename = 'sync_temp_' . $user->couple_id . '.json';
+        
+        $path = $file->storeAs('sync_temp', $filename, 'public');
+        
+        $baseURL = config('app.url') ?: $request->getSchemeAndHttpHost();
+        $downloadUrl = $baseURL . '/storage/' . $path;
+
+        event(new \App\Events\DatabaseSyncReady($user->couple_id, $user->id, $downloadUrl));
+
+        return response()->json([
+            'message' => 'Sync data uploaded successfully',
+            'download_url' => $downloadUrl
+        ]);
+    }
+
+    public function confirmDatabaseSync(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $filename = 'sync_temp/' . 'sync_temp_' . $user->couple_id . '.json';
+        
+        if (\Storage::disk('public')->exists($filename)) {
+            \Storage::disk('public')->delete($filename);
+            return response()->json(['message' => 'Temporary sync file deleted successfully']);
+        }
+
+        return response()->json(['message' => 'No temporary sync file found'], 404);
+    }
 }
