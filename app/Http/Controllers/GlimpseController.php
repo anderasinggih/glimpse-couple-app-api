@@ -196,7 +196,9 @@ class GlimpseController extends Controller
                         'last_active_at' => $user->last_active_at ? ($user->last_active_at instanceof \Carbon\Carbon ? $user->last_active_at->toIso8601String() : \Carbon\Carbon::parse($user->last_active_at)->toIso8601String()) : null,
                         'last_seen_message_id' => $user->last_seen_message_id !== null ? (int)$user->last_seen_message_id : null,
                         'location_history' => $this->getFilteredHistory($this->getUserLocationHistory($user)),
+                        'google_drive_refresh_token' => $user->google_drive_refresh_token,
                     ],
+
                     'partner_data' => $partner ? [
                         'id' => (int)$partner->id,
                         'name' => $partner->name,
