@@ -333,7 +333,7 @@ class AuthController extends Controller
             'otp' => 'required_if:method,email|string',
         ]);
 
-        if ($request->method === 'password') {
+        if ($request->input('method') === 'password') {
             if (!Hash::check($request->password, $user->password)) {
                 return response()->json(['message' => 'Incorrect password'], 422);
             }
