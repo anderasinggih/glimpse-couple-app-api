@@ -845,6 +845,23 @@ class GlimpseController extends Controller
             \Illuminate\Support\Facades\Log::warning("Websocket broadcast failed: " . $e->getMessage());
         }
 
+        // Clean up messages up to message_id that are now read
+        if ($message && $user->couple_id) {
+            $deletedMessages = \App\Models\Message::where('couple_id', $user->couple_id)
+                ->where('room_id', $message->room_id)
+                ->where('id', '<=', $request->message_id)
+                ->get();
+
+            foreach ($deletedMessages as $delMsg) {
+                if ($delMsg->is_audio && $delMsg->audio_path) {
+                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($delMsg->audio_path)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($delMsg->audio_path);
+                    }
+                }
+                $delMsg->delete();
+            }
+        }
+
         return response()->json([
             'status' => 'ok', 
             'last_seen_message_id' => $user->last_seen_message_id,
