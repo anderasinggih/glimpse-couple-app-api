@@ -2134,4 +2134,25 @@ class GlimpseController extends Controller
             ->header('Content-Type', $mimeType)
             ->header('Content-Disposition', 'attachment; filename="voice_whisper_' . $id . '.m4a"');
     }
+
+    public function deleteFlash(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->couple_id) {
+            return response()->json(['message' => 'No active couple relationship'], 400);
+        }
+
+        $flash = \App\Models\Flash::where('couple_id', $user->couple_id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$flash) {
+            return response()->json(['message' => 'Flash not found'], 404);
+        }
+
+        $this->deleteFlashFile($flash->photo_url);
+        $flash->delete();
+
+        return response()->json(['message' => 'Flash successfully deleted']);
+    }
 }
